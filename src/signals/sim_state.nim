@@ -76,6 +76,11 @@ type
                                      ## wave fired, 0 for never. Presentation
                                      ## only: the board's sweep reads it and
                                      ## the game hash does not.
+    waveCounts*: array[16, int]      ## (corridor, dir) -> waves so far. The
+                                     ## corridor tally's bars count THESE:
+                                     ## `waveTicks` is the in-window credit
+                                     ## list and is cleared the moment a wave
+                                     ## fires.
 
     throughput*: int
     rejected*: int

@@ -208,7 +208,11 @@ proc corridorTallyJson(sim: SimServer): JsonNode =
       "label": corridorLabel(bucket),
       "axis": (if bucket < 8: "row" else: "col"),
       "pips": pips,
-      "waves": sim.waveTicks[bucket].len + sim.waveTicks[bucket + 1].len
+      ## The corridor's waves SO FAR, both directions. It used to read
+      ## `waveTicks`, the in-window credit list, which `creditCorridor`
+      ## clears the moment a wave fires — so the bar dropped to zero at
+      ## exactly the moment the note says it increments.
+      "waves": sim.waveCounts[bucket] + sim.waveCounts[bucket + 1]
     })
 
 proc buildStateJson*(

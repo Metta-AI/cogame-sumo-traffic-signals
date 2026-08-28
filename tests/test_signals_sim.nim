@@ -531,6 +531,13 @@ suite "green wave":
     ## the same window does not raise a second.
     sim.creditCorridor(0, link)
     check sim.greenWaves == 1
+    ## And the corridor's own tally COUNTS waves rather than reading the
+    ## cleared window: the viewer's bar increments and stays up.
+    check sim.waveCounts[corridorIndex(apE, 0, 0)] == 1
+    var counted = 0
+    for bucket in 0 ..< sim.waveCounts.len:
+      counted += sim.waveCounts[bucket]
+    check counted == sim.greenWaves
     var waveEvents = 0
     var corridor = ""
     for event in sim.events:
