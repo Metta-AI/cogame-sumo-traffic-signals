@@ -306,6 +306,14 @@ for key in ("names", "scores"):
 reason = results.get("reason") or results.get("end_reason")
 if reason is not None:
     print(f"episode end reason: {reason}")
+# `fault` is a caught defect, not a healthy end: the game settles the episode,
+# writes its artifacts and exits 0 so the episode stays rankable, which means
+# the build is the only place that can turn it red.
+if reason == "fault" or results.get("endRule") == "fault":
+    raise SystemExit(
+        "FAULT: the smoke episode ended on an unexpected exception: "
+        f"{results.get('stopDetail', '')[:500]}"
+    )
 
 replay_path = work / "replay.json"
 if not replay_path.exists() or replay_path.stat().st_size == 0:

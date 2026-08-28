@@ -529,42 +529,54 @@ proc runServerLoop*(
   sim.phase = Playing
   let turns = sim.turnsPerEpisode()
   var deadlineHit = false
-  for turnIndex in 1 .. turns:
-    if sim.settled:
-      break
-    ## The engine's own hard stop, checked before the turn: 660 s is inside
-    ## 60 % of the assumed 1200 s episodeTimeoutSeconds, so the episode always
-    ## settles and scores itself rather than being silently discarded.
-    let elapsed = (getMonoTime() - episodeStart).inSeconds.int
-    if elapsed >= config.wallClockBudgetSeconds:
-      deadlineHit = true
-      echo "signals: wall-clock budget of ", config.wallClockBudgetSeconds,
-        "s reached; settling the episode from the real throughput at this tick"
-      break
-    sim.turn = turnIndex
-    sim.drainClosedSockets()
-    for record in sim.drainRegistrations(engine):
-      writer.writeChat(tickTime(sim.tickCount), 255, record)
-    let turnRecords = engine.turn(sim, turnIndex, elapsed)
-    writer.writeChat(tickTime(sim.tickCount), 255,
-      ordersRecord(sim, turnIndex))
-    for record in turnRecords:
-      writer.writeChat(tickTime(sim.tickCount), 255, record)
-      tracker.pending.add(record)
-    let turnStart = sim.tickCount
-    for k in 0 ..< config.turnTicks:
+  try:
+    for turnIndex in 1 .. turns:
       if sim.settled:
         break
-      sim.stepTick(k)
-      writer.writeHash(uint32(sim.tickCount), sim.gameHash())
-    sim.turnsPlayed = turnIndex
-    let frameEvents = newJArray()
-    sim.stepEvents(tracker, frameEvents)
-    let stateJson = sim.liveStateJson(frameEvents)
-    sim.broadcastFrame(stateJson)
-    broadcastPlayerKeepalive(stateJson)
-    if turnStart == sim.tickCount:
-      break                              ## nothing advanced: never spin.
+      ## The engine's own hard stop, checked before the turn: 660 s is inside
+      ## 60 % of the assumed 1200 s episodeTimeoutSeconds, so the episode always
+      ## settles and scores itself rather than being silently discarded.
+      let elapsed = (getMonoTime() - episodeStart).inSeconds.int
+      if elapsed >= config.wallClockBudgetSeconds:
+        deadlineHit = true
+        echo "signals: wall-clock budget of ", config.wallClockBudgetSeconds,
+          "s reached; settling the episode from the real throughput at this tick"
+        break
+      sim.turn = turnIndex
+      sim.drainClosedSockets()
+      for record in sim.drainRegistrations(engine):
+        writer.writeChat(tickTime(sim.tickCount), 255, record)
+      let turnRecords = engine.turn(sim, turnIndex, elapsed)
+      writer.writeChat(tickTime(sim.tickCount), 255,
+        ordersRecord(sim, turnIndex))
+      for record in turnRecords:
+        writer.writeChat(tickTime(sim.tickCount), 255, record)
+        tracker.pending.add(record)
+      let turnStart = sim.tickCount
+      for k in 0 ..< config.turnTicks:
+        if sim.settled:
+          break
+        sim.stepTick(k)
+        writer.writeHash(uint32(sim.tickCount), sim.gameHash())
+      sim.turnsPlayed = turnIndex
+      let frameEvents = newJArray()
+      sim.stepEvents(tracker, frameEvents)
+      let stateJson = sim.liveStateJson(frameEvents)
+      sim.broadcastFrame(stateJson)
+      broadcastPlayerKeepalive(stateJson)
+      if turnStart == sim.tickCount:
+        break                              ## nothing advanced: never spin.
+  except CatchableError as error:
+    ## `fault`: an unexpected exception in the sim or the loop is CAUGHT, the
+    ## episode is settled from the last completed tick, the stop is recorded
+    ## and the artifacts below are still written — a defect is reported and
+    ## rankable rather than lost with the process. The exit code stays 0;
+    ## tools/ci/docker_smoke.sh is what fails the build on it.
+    echo "signals: FAULT — ", error.msg
+    sim.applyStop(erFault,
+      "unexpected exception in the episode loop: " & error.msg)
+    writer.writeChat(tickTime(sim.tickCount), 255,
+      stopRecord(sim.tickCount, $erFault))
 
   if deadlineHit and not sim.settled:
     sim.applyStop(erWallClock, "wall-clock budget reached")
