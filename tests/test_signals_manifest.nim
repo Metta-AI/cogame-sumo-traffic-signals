@@ -144,8 +144,8 @@ suite "manifest pins":
     ## by one character breaks `upload-coworld` after a fully green certify.
     check manifest{"game"}{"name"}.getStr() == Slug
     check GameName == Slug
-    let uri = manifest{"game"}{"runnable"}{"env"}
-      {"ANTHROPIC_API_KEY_URI"}.getStr()
+    let env = manifest{"game"}{"runnable"}{"env"}
+    let uri = env{"ANTHROPIC_API_KEY_URI"}.getStr()
     check uri == "secret://coworld/" & Slug & "/anthropic_api_key"
     check manifest{"game"}{"runnable"}{"run"}[0].getStr() == "/bin/" & Slug
     check manifest{"game"}{"runnable"}{"image"}.getStr() ==
@@ -233,8 +233,8 @@ suite "the manifest loads under the installed CLI":
         check policy{"env"}{"PLAYER_PROMPT"}.getStr().len > 200
       if policy{"env"}.hasKey("PLAYER_SCRIPTED"):
         inc scripted
-        check policy{"env"}{"PLAYER_SCRIPTED"}.getStr() in
-          ["greedy", "fixedcycle"]
+        let baseline = policy{"env"}{"PLAYER_SCRIPTED"}.getStr()
+        check baseline == "greedy" or baseline == "fixedcycle"
     check prompts == 2
     check scripted == 2
     ## Champion #2 is uploaded while daveey-1 is the active player.

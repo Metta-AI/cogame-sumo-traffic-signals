@@ -23,7 +23,7 @@ proc starvedApproach*(sim: SimServer, intersection: int): Approach =
       continue
     if sim.cars[car].blockedByPhaseTicks >= sim.config.maxRedTicks:
       return approach
-  apN
+  result = apN
 
 proc hasStarvedApproach*(sim: SimServer, intersection: int): bool =
   for approach in ApproachOrder:

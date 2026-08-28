@@ -69,8 +69,8 @@ suite "episode writes artifacts":
   test "24. reason and endRule are the closed enums":
     let sim = runScripted(testConfig(), [blGreedy])
     check $sim.endReason in ["complete", "deadline", "fault"]
-    check $sim.endRule in
-      ["cleared", "gridlock", "fullPeriod", "wallClock", "fault"]
+    const Rules = ["cleared", "gridlock", "fullPeriod", "wallClock", "fault"]
+    check $sim.endRule in Rules
 
 suite "the cert seed is interesting":
   test "25. seed 42 on grid4x4 yields throughput, a spillback and a wave":
@@ -165,8 +165,9 @@ suite "the guards settle early":
       let budget = variant{"game_config"}{"wallClockBudgetSeconds"}.getInt()
       check budget <= DefaultWallClockBudgetSeconds
       check budget <= 720
-    check manifest{"certification"}{"game_config"}
-      {"wallClockBudgetSeconds"}.getInt() <= DefaultWallClockBudgetSeconds
+    let fixture = manifest{"certification"}{"game_config"}
+    check fixture{"wallClockBudgetSeconds"}.getInt() <=
+      DefaultWallClockBudgetSeconds
 
   test "27. the turn budget arithmetic fits inside the engine stop":
     let config = testConfig()

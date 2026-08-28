@@ -20,8 +20,8 @@ const
   ## forbidden-word scan must not trip over them.
   KeptIdentifiers = [
     "killfeed", "lightpool", "flagstone",
-    ## Sprite-protocol identifiers, not paintbot vocabulary: the LAYER flags
-    ## are part of the wire format `broadcast_core.js` decodes.
+    # Sprite-protocol identifiers, not paintbot vocabulary: the LAYER flags are
+    # part of the wire format `broadcast_core.js` decodes.
     "ZoomableFlag", "UiFlag", "flags", "MapLayerType"
   ]
   Replacements = [
