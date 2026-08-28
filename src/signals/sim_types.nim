@@ -276,6 +276,23 @@ proc truncateRunes*(text: string, limit: int): string =
     return text
   text.runeSubStr(0, limit)
 
+proc truncateBytes*(text: string, maxBytes: int): string =
+  ## Cuts `text` to at most `maxBytes` BYTES, still on a rune boundary. The
+  ## byte caps (the provider read) need this: `truncateRunes(4096)` bounds
+  ## runes, so a 4-byte-per-rune reply survived at ~16 KB and the "bounded
+  ## read" was not bounded in the unit it is written in.
+  if maxBytes <= 0:
+    return ""
+  if text.len <= maxBytes:
+    return text
+  var bytes = 0
+  for rune in text.runes:
+    let size = rune.size
+    if bytes + size > maxBytes:
+      break
+    result.add(rune)
+    bytes += size
+
 proc seatAlias*(slot: int): string =
   ## The seat's in-game name. The ONLY name that may appear in an
   ## observation, a prompt, an order, a `say`, a radio line or a board label.

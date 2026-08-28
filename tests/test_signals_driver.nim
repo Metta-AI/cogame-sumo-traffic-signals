@@ -240,8 +240,19 @@ suite "reply validation":
     huge.add("\"}")
     ## The cap is applied to the provider text before parsing; the validator
     ## still bounds the field itself.
-    let text = huge.truncateRunes(MaxReplyBytes)
+    let text = huge.truncateBytes(MaxReplyBytes)
     check text.len <= MaxReplyBytes
+    check text.len == MaxReplyBytes
+    ## And it is a BYTE cap even when every rune is four bytes long: a rune
+    ## cap at the same number let a 16 KB reply through.
+    var emoji = ""
+    for _ in 0 ..< 8000:
+      emoji.add("\u{1F6A6}")
+    let cut = emoji.truncateBytes(MaxReplyBytes)
+    check cut.len <= MaxReplyBytes
+    check cut.len == MaxReplyBytes
+    check cut.runeLen == MaxReplyBytes div 4
+    check cut.validateUtf8() == -1
 
   test "21. it never leaves a signal without an order":
     var sim = newSim(emptyConfig())

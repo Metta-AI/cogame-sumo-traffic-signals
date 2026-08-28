@@ -190,9 +190,11 @@ proc textOf*(
   for contentBlock in payload["content"]:
     if contentBlock{"type"}.getStr() == "text":
       result.add(contentBlock{"text"}.getStr())
-  ## Bounded read: at most MaxReplyBytes are parsed, on a rune boundary.
+  ## Bounded read: at most MaxReplyBytes BYTES are parsed, cut on a rune
+  ## boundary. The cap is written in bytes, so it is enforced in bytes — a
+  ## rune cap at the same number let a 4-byte-per-rune reply through at ~16 KB.
   if result.len > MaxReplyBytes:
-    result = result.truncateRunes(MaxReplyBytes)
+    result = result.truncateBytes(MaxReplyBytes)
   if payload{"stop_reason"}.getStr() == "max_tokens" and '{' notin result:
     raise newException(LlmError, "reply cut off at max_tokens before any " &
       "JSON: " & result.truncateRunes(160).replace("\n", " "))
