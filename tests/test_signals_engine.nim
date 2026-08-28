@@ -1,7 +1,7 @@
 ## End-to-end episodes writing artifacts. Tests 15 and 24-27 of the design
 ## note's list.
 
-import std/[json, os, strutils, unittest]
+import std/[json, os, unittest]
 import helpers
 import bitworld/runtime
 import signals/server

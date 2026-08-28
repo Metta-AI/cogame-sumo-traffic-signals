@@ -23,7 +23,7 @@ import
   std/[json, os, strutils],
   bitworld/runtime,
   curly,
-  sim_types, directives
+  sim_types
 
 const
   AnthropicUrl = "https://api.anthropic.com/v1/messages"

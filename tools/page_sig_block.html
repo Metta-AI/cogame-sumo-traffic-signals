@@ -198,7 +198,9 @@
   var lastTiny = null;
   var lastExitLine = 0;
 
-  function esc(t) { return CTX ? CTX.esc(t) : String(t); }
+  // Named sigEsc, not `esc`: the chrome alias block declares an `esc` and a
+  // same-named function in this scope would be hoisted over it.
+  function sigEsc(t) { return CTX ? CTX.esc(t) : String(t); }
 
   function build() {
     if (built) return;
@@ -318,7 +320,7 @@
         el.className = 'tl-bar';
         el.title = (t.axis === 'row' ? 'Row ' : 'Column ') + t.label + ' arterial';
         el.innerHTML = '<span class="tl-pips"></span>' +
-          '<span class="tl-label">' + esc(t.label) + '</span>' +
+          '<span class="tl-label">' + sigEsc(t.label) + '</span>' +
           '<span class="tl-waves"></span>';
         host.appendChild(el);
         host._bars.push(el);
@@ -400,22 +402,22 @@
     switch (e.k) {
       case 'order':
         feed(who(e.slot) + '<span class="glyph">\u25b8</span>' +
-          '<span class="badge">' + esc(e.at) + ' ' + orderWords(e) + '</span>');
+          '<span class="badge">' + sigEsc(e.at) + ' ' + orderWords(e) + '</span>');
         return true;
       case 'say':
         feed(who(e.slot) + '<span class="glyph">\u25b8</span>' +
-          '<span class="badge">radio: "' + esc(e.text) + '"</span>', 'radiorow');
+          '<span class="badge">radio: "' + sigEsc(e.text) + '"</span>', 'radiorow');
         return true;
       case 'wave':
         cityBeat(e.t, 'wave', -1, 'green wave on ' + e.corridor + ' — click to jump here');
         CTX.banner(('row ' + e.corridor + ' ' + e.dir + ' wave — ' +
           e.vehicles + ' cars, 4 signals clean').toUpperCase(), 'wipe accent green');
-        feed('<span class="badge">' + esc(String(e.corridor)) + ' ' + esc(String(e.dir)) +
+        feed('<span class="badge">' + sigEsc(String(e.corridor)) + ' ' + sigEsc(String(e.dir)) +
           ' WAVE \u2014 ' + e.vehicles + ' CARS</span>');
         return true;
       case 'spillback':
-        cityBeat(e.t, 'spillback', e.slot, esc(e.link) + ' filled up — click to jump here');
-        feed('<span class="badge">SPILLBACK ' + esc(e.link) + ' \u2014 ' +
+        cityBeat(e.t, 'spillback', e.slot, sigEsc(e.link) + ' filled up — click to jump here');
+        feed('<span class="badge">SPILLBACK ' + sigEsc(e.link) + ' \u2014 ' +
           aliasOf(e.slot) + "'S BLOCK IS FULL</span>");
         return true;
       case 'gridlock':
@@ -423,18 +425,18 @@
         CTX.banner('GRIDLOCK \u2014 ' + (e.ats || []).slice(0, 4).join(' \u00b7 ') +
           ' RING', 'steal accent red');
         feed('<span class="badge">GRIDLOCK \u2014 ' +
-          esc((e.links || []).slice(0, 4).join(' \u00b7 ')) + ' RING</span>');
+          sigEsc((e.links || []).slice(0, 4).join(' \u00b7 ')) + ' RING</span>');
         return true;
       case 'gridlockclear':
         CTX.banner('GRIDLOCK BROKEN \u2014 ' +
-          esc((e.links || [])[0] || '') + ' DRAINED', 'returned accent green');
+          sigEsc((e.links || [])[0] || '') + ' DRAINED', 'returned accent green');
         return true;
       case 'starve':
-        feed('<span class="badge">' + esc(e.at) + ' STARVED \u2014 ' +
-          esc(e.approach) + ' LANE BLOCKED, CITY FORCED THE PHASE</span>');
+        feed('<span class="badge">' + sigEsc(e.at) + ' STARVED \u2014 ' +
+          sigEsc(e.approach) + ' LANE BLOCKED, CITY FORCED THE PHASE</span>');
         return true;
       case 'gatejam':
-        feed('<span class="badge">' + esc(e.gate) +
+        feed('<span class="badge">' + sigEsc(e.gate) +
           ' GATE QUEUE FULL \u2014 TURNING CARS AWAY</span>');
         return true;
       case 'exit':
@@ -450,7 +452,7 @@
           aliasOf(e.slot) + ' missed the call — click to jump here');
         feed(who(e.slot) + '<span class="glyph">\u25b8</span>' +
           '<span class="badge tk">MISSED THE CALL \u2014 greedy phases (' +
-          esc(e.cause) + ')</span>');
+          sigEsc(e.cause) + ')</span>');
         return true;
       case 'end':
         cityBeat(e.t || 0, 'end', -1, 'the city settles — click to jump here');

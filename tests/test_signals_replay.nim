@@ -4,7 +4,6 @@
 
 import std/[json, os, osproc, strutils, unicode, unittest]
 import helpers
-import bitworld/runtime
 import signals/[replay_runtime, decide]
 
 proc tempDir(name: string): string =
@@ -206,6 +205,7 @@ suite "replay_summary is strict UTF-8 JSON":
     check summary.output.validateUtf8() == -1
     let document = parseJson(summary.output)
     check document{"protocol"}.getStr() == "signals/v1"
+    check document{"gameName"}.getStr() == GameName
     check document{"gameVersion"}.getStr() == GameVersion
     check document{"results"}{"reason"}.getStr().len > 0
     check document{"orders"}.len > 0

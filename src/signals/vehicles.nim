@@ -66,6 +66,11 @@ proc spawnDemand*(sim: var SimServer) =
     sim.cars[car].destGate = arrival.destGate
     sim.cars[car].queueGate = gate
     sim.cars[car].link = -1
+    ## The tick a car is CREATED is not a tick it spent waiting: without this
+    ## every car entered the city already carrying one wait tick, so its first
+    ## crossing could never be clean and `cleanCrossings` never reached
+    ## `waveCrossings` — no green wave was physically possible.
+    sim.cars[car].movedThisTick = true
     sim.gateQueues[gate].add(car)
     sim.emitEvent(initSimEvent(
       seSpawn, sim.tickCount, slot = sim.gateQueueOwner(gate),

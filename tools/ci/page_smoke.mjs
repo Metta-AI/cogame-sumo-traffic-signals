@@ -54,7 +54,14 @@ const dom = new JSDOM(html, {
         createCore(config) {
           window.__CFG__ = config;
           return {
-            start() {},
+            // start() fires the two callbacks the real core fires, because a
+            // forked page that lost the definition of something they call
+            // throws HERE and nowhere else: the wasm-viewer job saw
+            // "syncViewUi is not defined" from exactly this seam.
+            start() {
+              if (config.onFirstFrame) config.onFirstFrame();
+              if (config.onTransform) config.onTransform(stubTransform);
+            },
             stop() {},
             sendCommand(text) { (window.__SENT__ ||= []).push(text); },
             clickMap() {},

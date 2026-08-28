@@ -75,26 +75,26 @@ def brace_match(data: bytes, start: int) -> tuple[dict | None, int]:
 
 def summarise(path: str) -> dict:
     data = open(path, "rb").read()
-    header = data[:64]
     protocol = "signals/v1"
     game_version = ""
-    # The header is `magic + format version + gameName + gameVersion` before the
-    # config; recover the version as the ASCII run right after the game name.
+    game_name = ""
+    # The header is length-prefixed, so it is READ, not scanned: magic(8) +
+    # formatVersion(u16) + gameName + gameVersion, each string a u16 length
+    # followed by its bytes. An earlier version of this scanned the bytes after
+    # the game name for a run of ASCII digits and picked up the low byte of the
+    # timestamp that follows, reporting gameVersion "18" for GV1.
     try:
-        head_text = header.decode("latin-1")
-        # Split AFTER the magic, so
-        # the digit scan runs from the gameName+gameVersion region.
-        if "COWLDSIG" in head_text:
-            head_text = head_text.split("COWLDSIG", 1)[1]
-        if "sumo-traffic-signals" in head_text:
-            tail = head_text.split("sumo-traffic-signals", 1)[1]
-            digits = ""
-            for ch in tail:
-                if ch.isdigit():
-                    digits += ch
-                elif digits:
-                    break
-            game_version = digits
+        cursor = 8                                       # past the magic
+        cursor += 2                                      # past formatVersion
+        for _ in range(2):
+            length = int.from_bytes(data[cursor:cursor + 2], "little")
+            cursor += 2
+            value = data[cursor:cursor + length].decode("utf-8")
+            cursor += length
+            if not game_name:
+                game_name = value
+            else:
+                game_version = value
     except Exception:                                   # noqa: BLE001
         pass
 
@@ -159,6 +159,7 @@ def summarise(path: str) -> dict:
 
     return {
         "protocol": protocol,
+        "gameName": game_name,
         "gameVersion": game_version,
         "seed": config.get("seed"),
         "variant": config.get("variant"),

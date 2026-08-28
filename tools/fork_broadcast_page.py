@@ -242,6 +242,23 @@ def main() -> None:
         "  canvas.addEventListener('dblclick', function (ev) {",
         "the zoom bar and minimap wiring",
     )
+    # The core still reports its transform, and the page still owns the
+    # touch-action rule that decides whether a one-finger drag belongs to the
+    # page or the board. Everything else the view panel fed is gone with it.
+    page = replace_once(
+        page,
+        "  canvas.addEventListener('dblclick', function (ev) {",
+        """  // The zoom bar and the board inset are DROPPED in this fork: the board is a
+  // fixed 34 x 26 cell city with no off-frame area, so there is nothing to
+  // locate and nothing to zoom toward. What survives is the one rule the
+  // panel did not own — whether a one-finger drag belongs to the page.
+  function syncViewUi(t) {
+    syncTouchAction(t || core.getTransform());
+  }
+
+  canvas.addEventListener('dblclick', function (ev) {""",
+        "the surviving view-UI hook",
+    )
     page = cut_between(
         page,
         "  function applyEvent(e, s) {",
