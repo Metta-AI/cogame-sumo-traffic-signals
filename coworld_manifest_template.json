@@ -89,6 +89,7 @@
         },
         "num_agents": {"type": "integer", "minimum": 4, "maximum": 4, "default": 4},
         "seed": {"type": "integer", "minimum": 0},
+        "variant": {"type": "string", "enum": ["grid4x4", "rushhour"], "default": "grid4x4"},
         "minPlayers": {"type": "integer", "minimum": 1, "maximum": 4},
         "turnTicks": {"type": "integer", "minimum": 2, "maximum": 64},
         "maxTicks": {"type": "integer", "minimum": 8, "maximum": 4096},
@@ -211,6 +212,7 @@
       "name": "4x4 grid (4 controllers, 16 signals)",
       "description": "Sixteen signalised intersections on a 4x4 city grid, four controllers with a quadrant each. Cars enter from sixteen edge gates over a 208-second peak and drive fixed shortest routes; approaches are single-lane and blocks hold four to six cars, so a green into a full block moves nobody. Everyone is scored on the same number: how many cars got out of the city.",
       "game_config": {
+        "variant": "grid4x4",
         "players": [{"name": "Alpha"}, {"name": "Beta"}, {"name": "Gamma"}, {"name": "Delta"}],
         "num_agents": 4,
         "minPlayers": 4,
@@ -254,6 +256,7 @@
       "name": "Rush hour (4x4, 4 controllers, heavy arterial demand)",
       "description": "The same city under a demand peak a third higher and two thirds of it running the full length of an avenue. Gate queues overflow, blocks fill in seconds and one badly timed green closes a ring: the hard version, where holding a green you cannot use is the difference between four hundred cars through and a frozen city.",
       "game_config": {
+        "variant": "rushhour",
         "players": [{"name": "Alpha"}, {"name": "Beta"}, {"name": "Gamma"}, {"name": "Delta"}],
         "num_agents": 4,
         "minPlayers": 4,
@@ -301,6 +304,7 @@
       {"player_id": "fixedcycle"}
     ],
     "game_config": {
+      "variant": "grid4x4",
       "players": [{"name": "Alpha"}, {"name": "Beta"}, {"name": "Gamma"}, {"name": "Delta"}],
       "num_agents": 4,
       "minPlayers": 4,

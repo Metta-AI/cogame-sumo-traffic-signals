@@ -31,6 +31,24 @@ suite "manifest pins":
         check key != "num_agents"
       check not variant.hasKey("num_agents")
 
+  test "33. every variant's game_config NAMES ITSELF as the variant":
+    ## `sim_config` defaults `variant` to "grid4x4", so a variant whose
+    ## game_config does not carry its own id records and reports
+    ## `variant: "grid4x4"` for a rushhour episode — in results.json, in the
+    ## replay's config JSON and therefore in the viewer.
+    for variant in manifest{"variants"}:
+      let id = variant{"id"}.getStr()
+      checkpoint("variant " & id)
+      check variant{"game_config"}{"variant"}.getStr() == id
+      var config = defaultGameConfig()
+      config.update($variant{"game_config"})
+      check config.variant == id
+    let cert = manifest{"certification"}{"game_config"}
+    check cert{"variant"}.getStr() == "grid4x4"
+    ## config_schema is additionalProperties:false, so the key it carries has
+    ## to be declared or every episode config is rejected.
+    check manifest{"game"}{"config_schema"}{"properties"}.hasKey("variant")
+
   test "33. no game_config anywhere carries a literal tokens array":
     ## matriculate rejects "game_config must not include runner-managed
     ## tokens" (knights-archers 0.1.0), while config_schema keeps REQUIRING it
