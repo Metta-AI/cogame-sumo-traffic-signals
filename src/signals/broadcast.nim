@@ -181,7 +181,7 @@ proc seatStateJson(sim: SimServer, slot: int): JsonNode =
   var policies = newJArray()
   policies.add(%sim.players[slot].name)
   %*{
-    "lives": sim.served[slot],       ## the classic chrome's big numeral slot
+    "lives": sim.served[slot],       # the classic chrome's big numeral slot
     "policies": policies,
     "alias": sim.players[slot].alias,
     "quad": sim.players[slot].quadrant,

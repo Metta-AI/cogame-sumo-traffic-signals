@@ -14,16 +14,16 @@ import
 
 const
   BoardLabelKinds*: array[10, string] = [
-    "bed",        ## one quadrant of the baked city bed
-    "car",        ## a car chip: facing, colour, chevron
-    "dash",       ## the .tiny car readout
-    "signal",     ## a signal head: facing, lamp state
-    "heat",       ## the queue-length heatmap band
-    "full",       ## a full link's hard-edged band
-    "ring",       ## a gridlock ring link outline
-    "wave",       ## the green-wave sweep band
-    "gatepip",    ## one car queued outside a gate
-    "chrome"      ## the broadcast chrome JSON carrier
+    "bed",        # one quadrant of the baked city bed
+    "car",        # a car chip: facing, colour, chevron
+    "dash",       # the .tiny car readout
+    "signal",     # a signal head: facing, lamp state
+    "heat",       # the queue-length heatmap band
+    "full",       # a full link's hard-edged band
+    "ring",       # a gridlock ring link outline
+    "wave",       # the green-wave sweep band
+    "gatepip",    # one car queued outside a gate
+    "chrome"      # the broadcast chrome JSON carrier
   ]
 
 proc bedLabel*(index: int): string = "bed/" & $index
