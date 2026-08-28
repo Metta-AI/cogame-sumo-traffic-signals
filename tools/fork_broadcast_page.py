@@ -502,6 +502,30 @@ SIGNALS_ENDCARD = """  // ======================================================
     });
   }
 
+  function fillEndcardTeams(s, teams) {
+    // One panel per controller: its alias and quadrant, its REAL policy name
+    // (spectator side only), and the three figures the score is built from.
+    teams.forEach(function (team) {
+      var slot = slotOfTeam(team);
+      var t = (s.over && s.over.teams && s.over.teams[team]) || {};
+      var el = $('ec-' + team);
+      if (!el) return;
+      el.innerHTML =
+        '<div class="ec-quad">' + (COG_ALIAS[slot] || team.toUpperCase()) +
+        ' \u00b7 ' + (COG_QUAD[slot] || '') + '</div>' +
+        '<div class="ec-name">' +
+        esc(rosterName(s, slot) || team.toUpperCase()) + '</div>' +
+        '<div class="ec-line"><span>Cars out</span><b>' +
+        (t.served || 0) + '</b></div>' +
+        '<div class="ec-line"><span>Car-seconds lost</span><b>' +
+        (t.wait || 0) + '</b></div>' +
+        '<div class="ec-line"><span>Phase changes</span><b>' +
+        (t.changes || 0) + '</b></div>' +
+        '<div class="ec-line"><span>Score</span><b>' +
+        (t.score || 0) + '</b></div>';
+    });
+  }
+
   function renderEndcard(s) {
     var o = s.over;
     if (!o) return;
@@ -530,6 +554,7 @@ SIGNALS_ENDCARD = """  // ======================================================
       (o.waiting || 0) + ' car-seconds lost, ' + (o.rejected || 0) +
       ' turned away</div>' +
       '<div class="ec-score">CITY SCORE ' + (o.score || 0) + '</div>';
+    fillEndcardTeams(s, teams);
     $('endcard').classList.add('on');
   }
 

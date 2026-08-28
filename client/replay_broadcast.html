@@ -1741,6 +1741,30 @@ body[data-embed] #board { top: 0; height: 100%; }
     });
   }
 
+  function fillEndcardTeams(s, teams) {
+    // One panel per controller: its alias and quadrant, its REAL policy name
+    // (spectator side only), and the three figures the score is built from.
+    teams.forEach(function (team) {
+      var slot = slotOfTeam(team);
+      var t = (s.over && s.over.teams && s.over.teams[team]) || {};
+      var el = $('ec-' + team);
+      if (!el) return;
+      el.innerHTML =
+        '<div class="ec-quad">' + (COG_ALIAS[slot] || team.toUpperCase()) +
+        ' · ' + (COG_QUAD[slot] || '') + '</div>' +
+        '<div class="ec-name">' +
+        esc(rosterName(s, slot) || team.toUpperCase()) + '</div>' +
+        '<div class="ec-line"><span>Cars out</span><b>' +
+        (t.served || 0) + '</b></div>' +
+        '<div class="ec-line"><span>Car-seconds lost</span><b>' +
+        (t.wait || 0) + '</b></div>' +
+        '<div class="ec-line"><span>Phase changes</span><b>' +
+        (t.changes || 0) + '</b></div>' +
+        '<div class="ec-line"><span>Score</span><b>' +
+        (t.score || 0) + '</b></div>';
+    });
+  }
+
   function renderEndcard(s) {
     var o = s.over;
     if (!o) return;
@@ -1769,6 +1793,7 @@ body[data-embed] #board { top: 0; height: 100%; }
       (o.waiting || 0) + ' car-seconds lost, ' + (o.rejected || 0) +
       ' turned away</div>' +
       '<div class="ec-score">CITY SCORE ' + (o.score || 0) + '</div>';
+    fillEndcardTeams(s, teams);
     $('endcard').classList.add('on');
   }
 
@@ -2148,8 +2173,11 @@ body[data-embed] #board { top: 0; height: 100%; }
    measures it into --topband and no overlay ever sits in the transport band. */
 #scorebug { flex-wrap: wrap; }
 
-/* A policy name must never collapse to an ellipsis at 360 px. */
-.plate-name {
+/* A policy name must never collapse to an ellipsis at 360 px. Scoped through
+   `.plate` so it outranks the inherited `.plate .team-name { flex: 0 1 auto;
+   min-width: 0 }`, which let the name shrink to "A." on a plate carrying a
+   label and a numeral beside it. */
+.plate .plate-name {
   flex: 1 1 auto;
   min-width: 3.2em;
   overflow: hidden;
@@ -2289,6 +2317,59 @@ body[data-embed] #board { top: 0; height: 100%; }
 .beat-marker.gridlock { background: var(--red, #e0523a); height: 100%; }
 .beat-marker.fallback { background: rgba(242, 232, 216, 0.5); }
 .beat-marker.end { background: var(--paper); }
+
+/* The endcard table is five columns here, not paintbot's four, and its headings
+   are words rather than initials: widen the numeric tracks and shrink the
+   heading so "SPILLBACKS" does not ride over "WAVES". */
+#endcard .ec-thead,
+#endcard .ec-row {
+  grid-template-columns:
+    minmax(0, 1fr) calc(34 * var(--u)) calc(42 * var(--u))
+    calc(30 * var(--u)) calc(48 * var(--u));
+}
+#endcard .ec-thead {
+  font-size: calc(6.5 * var(--u));
+  letter-spacing: 0.06em;
+}
+#endcard .ec-row span:not(:first-child) {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+#endcard .ec-summary {
+  margin-top: calc(6 * var(--u));
+  font-family: var(--finefont);
+  font-size: calc(8 * var(--u));
+  color: var(--paper-dim);
+}
+#endcard .ec-score {
+  margin-top: calc(2 * var(--u));
+  font-family: var(--pixfont);
+  font-size: calc(13 * var(--u));
+  color: var(--amber);
+  letter-spacing: 0.06em;
+}
+#endcard .ec-team .ec-quad {
+  font-family: var(--finefont);
+  font-size: calc(7 * var(--u));
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+}
+#endcard .ec-team .ec-name {
+  font-family: var(--pixfont);
+  font-size: calc(11 * var(--u));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#endcard .ec-team .ec-line {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--finefont);
+  font-size: calc(7.5 * var(--u));
+  color: var(--paper-dim);
+}
+#endcard .ec-team .ec-line b { color: var(--paper); font-weight: 600; }
 
 /* The inherited headline was one nowrap line carrying a policy name, clipped
    with an ellipsis. This one carries the city's whole verdict, so it WRAPS and

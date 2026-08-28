@@ -158,7 +158,7 @@ suite "chrome provenance":
     check "#scorebug { flex-wrap: wrap; }" in page
     check "bug.appendChild(rail)" in page
     ## The plate-name rule, and the five .tiny rules.
-    check ".plate-name {" in page
+    check ".plate .plate-name {" in page
     check "flex: 1 1 auto;" in page
     check "min-width: 3.2em;" in page
     var tinyRules = 0

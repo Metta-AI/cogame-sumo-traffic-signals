@@ -253,21 +253,21 @@ proc bakeCityBed*(city: City, config: GameConfig): Chip =
           var colour: Rgba
           if road:
             colour =
-              if haveFloor: sampleTiled(floorImage, x, y, 30)
-              else: rgba(38, 38, 42)
+              if haveFloor: sampleTiled(floorImage, x, y, 8)
+              else: rgba(58, 58, 64)
           else:
             colour =
               if haveWalls:
                 if ((cx div 3) + (cy div 3)) mod 2 == 0:
-                  sampleTiled(wallH, x, y, 55)
+                  sampleTiled(wallH, x, y, 42)
                 else:
-                  sampleTiled(wallV, x, y, 55)
+                  sampleTiled(wallV, x, y, 42)
               else:
                 rgba(52, 46, 38)
           result.put(x, y, colour)
 
   # Kerbs: a pale edge everywhere a block interior meets a road cell.
-  let kerb = rgba(150, 146, 134, 170)
+  let kerb = rgba(214, 208, 192, 210)
   for cy in 0 ..< BoardCellsHigh:
     for cx in 0 ..< BoardCellsWide:
       if isRoadCell(cx, cy):
@@ -315,7 +315,7 @@ proc bakeCityBed*(city: City, config: GameConfig): Chip =
       owner = ownerOf(at)
       tint = seatColourRgba(owner)
     result.blendRect(bx, by, CellPx * 2, CellPx * 2,
-      rgba(int(tint.r), int(tint.g), int(tint.b), 34))
+      rgba(int(tint.r), int(tint.g), int(tint.b), 46))
     # zebra crossings just outside the box on each side
     for i in countup(0, CellPx * 2 - 1, 4):
       result.blendRect(bx + i, by - 4, 2, 4, zebra)
