@@ -87,25 +87,20 @@ suite "the cert seed is interesting":
     for slot in 0 ..< MaxSeats:
       check sim.phaseChanges[slot] > 0
     ## DOCUMENTED DIVERGENCE from the design note's test 25, which also asks
-    ## seed 42 for at least one GREEN WAVE. It cannot have one, and the note's
-    ## own thesis is why: a wave needs `waveVehicles` cars each taking
-    ## `waveCrossings` CONSECUTIVE crossings with zero wait inside a
+    ## seed 42 for at least one GREEN WAVE. This seat mix cannot have one, and
+    ## the note's own thesis is why: a wave needs `waveVehicles` cars each
+    ## taking `waveCrossings` CONSECUTIVE crossings with zero wait inside a
     ## `waveWindow` of 16 ticks, and the fixture seats `greedy` and
     ## `fixedcycle` — the two controllers that by construction never agree on
     ## an offset ("neither ever emits `say` or `notes` — they are the
     ## controllers who will not talk to you, which is precisely the
-    ## coordination problem the idea names"). Uncoordinated signals put a
-    ## roughly one-in-five green in front of each arrival, so three in a row is
-    ## ~1 % a car and four inside one 16-tick window on one corridor is
-    ## effectively unreachable. Emergence under coordination is the POINT; a
-    ## fixture that produced waves without it would mean the mechanism was not
-    ## measuring coordination at all.
+    ## coordination problem the idea names"). Emergence under coordination is
+    ## the POINT; a fixture that produced waves without it would mean the
+    ## mechanism was not measuring coordination at all.
     ##
-    ## The wave path is covered where it can be covered honestly:
-    ## `tests/test_signals_sim.nim` proves the window logic and the
-    ## clean-crossing rule exactly, and `tools/ci/renderer_fixture.html` drives
-    ## the SHIPPED page's wave banner, corridor tally and `wave` beat with a
-    ## synthetic frame — the same reason that fixture exists for `say` text.
+    ## So the wave assertion is not dropped, it MOVES to the scenario that can
+    ## carry it: the suite below drives coordinated offsets through the same
+    ## engine and asserts `greenWaves >= 1` end to end.
     checkpoint("greenWaves on the scripted fixture: " & $sim.greenWaves)
 
   test "25. the cert fixture's config is the one the test measured":
@@ -117,6 +112,52 @@ suite "the cert seed is interesting":
     ## 256 ticks at one tick per two presentation frames is ~21 s of playback,
     ## which is what lets `viewer_smoke.mjs --soak 10` see real advancement.
     check fixture{"maxTicks"}.getInt() * FramesPerTick > 10 * TargetFps
+
+suite "coordination raises a green wave":
+  test "25. scripted wave orders on one corridor raise a real green wave":
+    ## The design note's test 13 driven END TO END, and the counterpart to the
+    ## uncoordinated fixture above: `wave` orders with rising delays put row
+    ## A's four signals on the eastbound phase in sequence, and the platoon
+    ## crosses three consecutive intersections without stopping. Nothing is
+    ## staged — the assertion runs through the real `stepTick`: the signal
+    ## machine's minGreen and clearance, the one-car-per-approach discharge,
+    ## the clean-crossing rule and the wave window all have to agree for
+    ## `greenWaves` to move.
+    let config = emptyConfig()
+    var sim = newSim(config)
+    sim.turn = 1
+    for at in 0 ..< Intersections:
+      sim.forcePhase(at, phNSG)
+      sim.setOrder(at, ovHold, phNSG)
+    ## The offsets: A1 and A2 open now, A3 two ticks in, A4 four — each green
+    ## arriving ahead of the platoon instead of in front of an empty box.
+    sim.setOrder(0, ovWave, phEWG, 0)
+    sim.setOrder(1, ovWave, phEWG, 0)
+    sim.setOrder(2, ovWave, phEWG, 2)
+    sim.setOrder(3, ovWave, phEWG, 4)
+    ## The platoon: three cars already inside the A1>A2 block, four more back
+    ## at the west gate, every one of them bound straight through to eA4.
+    let
+      west = gateIndex("wA1")
+      east = gateIndex("eA4")
+      entry = sim.city.gates[west].entryLink
+      firstBlock = sim.city.linkIndex("A1>A2")
+    for cell in [5, 3, 1]:
+      discard sim.placeCar(firstBlock, cell, west, east)
+    for cell in [3, 2, 1, 0]:
+      discard sim.placeCar(entry, cell, west, east)
+    for tick in 0 ..< 36:
+      sim.stepTick(tick mod config.turnTicks)
+    echo "coordinated corridor: ", describeState(sim)
+    check sim.greenWaves >= 1
+    var corridors: seq[string]
+    for event in sim.events:
+      if event.kind == seWave:
+        corridors.add(event.text)
+    check corridors.len >= 1
+    checkpoint("wave corridor: " & corridors[0])
+    check corridors[0].startsWith("A")
+    check corridors[0].contains("eastbound")
 
 suite "no seat can stall the episode":
   test "26. every seat scripted, no credentials: the episode still finishes":

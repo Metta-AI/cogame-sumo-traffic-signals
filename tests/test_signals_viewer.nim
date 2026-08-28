@@ -98,18 +98,26 @@ suite "chrome provenance":
       for part in text[4 .. ^1].split(','):
         let pair = part.split('=')
         if pair.len == 2 and "C." in pair[1]:
-          let name = pair[0].strip()
-          ## One-character helpers (`$`) are re-declared in the block's own
-          ## scope on purpose and cannot collide: the block is its own IIFE,
-          ## which the structural check below pins.
-          if name.len >= 2:
-            aliases.add(name)
+          aliases.add(pair[0].strip())
     check aliases.len >= 8
+    ## Every alias, one-character ones included: `$` is a chrome alias like any
+    ## other and the guard covers it.
+    check "$" in aliases
     for alias in aliases:
       checkpoint("chrome alias " & alias)
       check ("function " & alias & "(") notin block0
-      check ("var " & alias & " ") notin block0
-      check ("var " & alias & "=") notin block0
+      let declarations =
+        block0.count("var " & alias & " ") + block0.count("var " & alias & "=")
+      if alias == "$":
+        ## The ONE enumerated exception, named rather than skipped by length:
+        ## the block re-declares `$` exactly once, as a `var` inside its own
+        ## IIFE (tools/page_sig_block.html:262), where it is function-scoped
+        ## and cannot hoist into the page. A second declaration, or the same
+        ## trick for any other alias, still fails.
+        check declarations == 1
+        check block0.find("var $ ") > block0.find("(function () {")
+      else:
+        check declarations == 0
     ## The beat builder is cityBeat, never the chrome's own beat-marker name.
     check "function cityBeat(" in block0
     check "function markBeat(" notin block0
