@@ -2578,7 +2578,10 @@ body[data-embed] #board { top: 0; height: 100%; }
     var big = $('clock-time');
     var cap = $('clock-caption');
     if (big && s.ph !== 'lobby') {
-      big.textContent = 'THROUGH ' + (s.through || 0);
+      // The big numeral carries PAR beside it: par is the win threshold, and
+      // riding on the title attribute alone made the only number that says
+      // whether the city is winning invisible to a spectator.
+      big.textContent = 'THROUGH ' + (s.through || 0) + ' / ' + (s.par || 0) + ' PAR';
       big.title = (s.through || 0) + ' of ' + (s.demand || 0) + ' cars out, par ' + (s.par || 0);
     }
     if (cap && s.ph !== 'lobby') {
