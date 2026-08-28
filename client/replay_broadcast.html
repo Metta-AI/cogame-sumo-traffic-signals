@@ -2621,13 +2621,19 @@ body[data-embed] #board { top: 0; height: 100%; }
         feed(who(e.slot) + '<span class="glyph">\u25b8</span>' +
           '<span class="badge">radio: "' + sigEsc(e.text) + '"</span>', 'radiorow');
         return true;
-      case 'wave':
-        cityBeat(e.t, 'wave', -1, 'green wave on ' + e.corridor + ' — click to jump here');
-        CTX.banner(('row ' + e.corridor + ' ' + e.dir + ' wave — ' +
+      case 'wave': {
+        // A corridor is a ROW (A-D) east/west or a COLUMN (1-4) north/south:
+        // the engine sends the letter or the digit, so the word in front of
+        // it has to follow, or a northbound wave banners as "ROW 2".
+        var axis = /^[0-9]/.test(String(e.corridor)) ? 'column ' : 'row ';
+        cityBeat(e.t, 'wave', -1,
+          'green wave on ' + axis + e.corridor + ' — click to jump here');
+        CTX.banner((axis + e.corridor + ' ' + e.dir + ' wave — ' +
           e.vehicles + ' cars, 4 signals clean').toUpperCase(), 'wipe accent green');
         feed('<span class="badge">' + sigEsc(String(e.corridor)) + ' ' + sigEsc(String(e.dir)) +
           ' WAVE \u2014 ' + e.vehicles + ' CARS</span>');
         return true;
+      }
       case 'spillback':
         cityBeat(e.t, 'spillback', e.slot, sigEsc(e.link) + ' filled up — click to jump here');
         feed('<span class="badge">SPILLBACK ' + sigEsc(e.link) + ' \u2014 ' +
