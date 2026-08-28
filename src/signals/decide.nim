@@ -293,9 +293,15 @@ proc turn*(
         result.add(fallbackRecord(
           turnIndex, slot, attempt + 1, cause, error.msg))
         ## Attempt 1 says "will retry" — only a genuine SECOND failure may log
-        ## "falling back" (the pommerman 0.1.1 phase-60 grep scar).
-        echo "signals llm: seat ", slot, " attempt ", attempt + 1,
-          " failed, will retry: ", error.msg
+        ## "falling back" (the pommerman 0.1.1 phase-60 grep scar), so this
+        ## line is attempt 1's alone. Attempt 2's failure is reported by the
+        ## "falling back" line below, once, and nowhere else.
+        if attempt == 0:
+          echo "signals llm: seat ", slot, " attempt ", attempt + 1,
+            " failed, will retry: ", error.msg
+        else:
+          echo "signals llm: seat ", slot, " attempt ", attempt + 1,
+            " failed: ", error.msg
         stillOpen.add(slot)
     open = stillOpen
     inc attempt
