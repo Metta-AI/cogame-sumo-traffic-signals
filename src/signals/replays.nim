@@ -38,7 +38,15 @@ const
     ## ~21 s, which is what lets `viewer_smoke.mjs --soak 10` observe real
     ## advancement instead of a legitimately-finished replay.
 
-let SignalsReplaySpec* = ReplaySpec(
+# A `const`, NOT a module-level `let`. Emscripten fires
+# `Module.onRuntimeInitialized` BEFORE `callMain()`, so a host that loads a
+# replay from that callback synchronously — `tools/wasm_replay_smoke.cjs` does;
+# the Worker does not, because it awaits a `fetch` first — would run
+# `parseReplayBytes` before Nim's `main` had initialised a module-level `let`.
+# The spec's `formatVersion` then read 0 and every replay was rejected with
+# "Unsupported replay format version" in node while loading fine in the
+# browser. A const has no runtime initialiser to miss.
+const SignalsReplaySpec* = ReplaySpec(
   magic: SignalsReplayMagic,
   formatVersion: SignalsReplayFormatVersion,
   gameName: GameName,
