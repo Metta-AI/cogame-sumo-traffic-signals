@@ -205,12 +205,12 @@ proc initReplayPlayer*(data: ReplayData): ReplayPlayer =
   result.stopRule = ""
   result.hashMismatchTick = -1
   result.playing = true
+  ## Speed 1 — one tick per `FramesPerTick` frames at `TargetFps`, i.e. 12
+  ## ticks/s, so a 256-tick episode plays for ~21 s. Opening at speed 2 ran the
+  ## same episode out in ~10.7 s and left `viewer_smoke.mjs --soak 10` with 12
+  ## ticks of margin: one slower load and the soak would be watching a
+  ## legitimately finished replay.
   result.speedIndex = 0
-    ## Speed 1 — one tick per `FramesPerTick` frames at `TargetFps`, i.e. 12
-    ## ticks/s, so a 256-tick episode plays for ~21 s. Opening at speed 2 ran
-    ## the same episode out in ~10.7 s and left `viewer_smoke.mjs --soak 10`
-    ## with 12 ticks of margin: one slower load and the soak would be watching
-    ## a legitimately finished replay.
   result.startTick = 0
   result.maxTick = 0
   for chat in data.chats:

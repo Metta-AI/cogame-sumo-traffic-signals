@@ -204,14 +204,14 @@ proc corridorTallyJson(sim: SimServer): JsonNode =
     var pips = newJArray()
     for at in corridorIntersections(bucket):
       pips.add(%sim.phaseText(at))
+    ## `waves` is the corridor's waves SO FAR, both directions. It used to
+    ## read `waveTicks`, the in-window CREDIT list, which `creditCorridor`
+    ## clears the moment a wave fires — so the bar dropped to zero at exactly
+    ## the moment the note says it increments.
     result.add(%*{
       "label": corridorLabel(bucket),
       "axis": (if bucket < 8: "row" else: "col"),
       "pips": pips,
-      ## The corridor's waves SO FAR, both directions. It used to read
-      ## `waveTicks`, the in-window credit list, which `creditCorridor`
-      ## clears the moment a wave fires — so the bar dropped to zero at
-      ## exactly the moment the note says it increments.
       "waves": sim.waveCounts[bucket] + sim.waveCounts[bucket + 1]
     })
 
