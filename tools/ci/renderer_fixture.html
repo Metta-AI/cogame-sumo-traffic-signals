@@ -57,9 +57,11 @@
 
   // A 120-rune say, exactly at MaxSayRunes, with a 4-byte emoji sitting on the
   // boundary: the cap the server enforces is the cap the chrome must render.
+  // The length is ASSERTED below, not trimmed — a quietly shortened remark is
+  // exactly the way this fixture passes while testing nothing.
   var SAY = 'row C eastbound is my wave: C1 at +0, C2 at +6, Delta take C3 at ' +
-            '+12 and hold B3 while C2>C3 drains, please \uD83D\uDEA6';
-  SAY = Array.from(SAY).slice(0, 120).join('');
+            '+12 and hold B3 while C2>C3 drains, then keep rolling \uD83D\uDEA6';
+  var SAY_RUNES = 120;
 
   var COLOURS = ['red', 'blue', 'green', 'yellow'];
   var ALIASES = ['Alpha', 'Beta', 'Gamma', 'Delta'];
@@ -119,7 +121,6 @@
     var list = [{ k: 'turn', n: 23 }];
     for (var slot = 0; slot < 4; slot++) {
       list.push({ k: 'order', slot: slot, at: 'C2', verb: 'wave', phase: 'EWG', delay: 6, t: 180 });
-      list.push({ k: 'say', slot: slot, text: SAY, t: 180 });
     }
     list.push({ k: 'wave', corridor: 'C', dir: 'eastbound', ats: ['C1', 'C2', 'C3', 'C4'], vehicles: 5, t: 181 });
     list.push({ k: 'spillback', link: 'C2>C3', at: 'C3', slot: 3, t: 182 });
@@ -130,6 +131,32 @@
     list.push({ k: 'fallback', slot: 1, cause: 'timeout', t: 186 });
     list.push({ k: 'exit', gate: 'eC4', travel: 40, stops: 2, total: 275, t: 187 });
     return list;
+  }
+
+  // The radio lines are driven in their own frame, AFTER the city's events:
+  // #killfeed keeps MAX_FEED = 4 rows and evicts the oldest, so a say pushed
+  // ahead of the rest is gone from the DOM before anything can measure it —
+  // which is how a fixture built to gate the radio path draws no radio line
+  // at all.
+  function sayEvents() {
+    var list = [];
+    for (var slot = 0; slot < 4; slot++) {
+      list.push({ k: 'say', slot: slot, text: SAY, t: 188 });
+    }
+    return list;
+  }
+
+  // The fixture's own strings, asserted still full length where the chrome
+  // actually rendered them: one shortened remark otherwise leaves every gate
+  // below green while measuring nothing.
+  function fullLengthSayRows(doc) {
+    var walker = doc.createTreeWalker(doc.body, 4 /* SHOW_TEXT */, null);
+    var rows = 0;
+    var node;
+    while ((node = walker.nextNode())) {
+      if ((node.nodeValue || '').indexOf(SAY) >= 0) rows++;
+    }
+    return rows;
   }
 
   var overState = {
@@ -211,6 +238,12 @@
     cfg.onText(JSON.stringify(state({ ph: 'lobby', lob: 9, t: 0 })));
     cfg.onText(JSON.stringify(state()));
     cfg.onText(JSON.stringify(state({ events: events() })));
+    cfg.onText(JSON.stringify(state({ events: sayEvents() })));
+    var rows = fullLengthSayRows(win.document);
+    if (rows !== 4) {
+      throw new Error('the chrome rendered ' + rows + ' of 4 radio lines at ' +
+        'their full ' + SAY_RUNES + ' runes');
+    }
     var runs = transcribe(win.document, width, height);
     cfg.onText(JSON.stringify(state(overState)));
     runs += transcribe(win.document, width, height);
@@ -269,6 +302,10 @@
       return response.text();
     })
     .then(function (html) {
+      if (Array.from(SAY).length !== SAY_RUNES) {
+        throw new Error('the fixture say is ' + Array.from(SAY).length +
+          ' runes, not the full cap of ' + SAY_RUNES);
+      }
       var swapped = html.replace(
         /<script src="\.\/static_replay\.js"><\/script>/,
         stubAdapter());
