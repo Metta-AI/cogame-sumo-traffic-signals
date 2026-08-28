@@ -1,0 +1,8 @@
+{
+  "switchMargin": 2,
+  "greenCap": 6,
+  "queueRule": "stopped-only",
+  "note": "The sweep's pick, recorded by tools/tune_baselines.nim and re-checked by ci.yml with --check and by tests/test_signals_tuning.nim. switchMargin 2 is the smallest margin that stops `auto` and `greedy` oscillating between two near-equal phases every tick (a change costs 2 ticks of all-red, so an oscillator spends a third of its green on clearance); greenCap 6 is the longest east-west block, so `served` never values a queue longer than the block that would receive it. queueRule is not swept: counting only the consecutive STOPPED cars back from the stop line is a RULE (changing it is a GameVersion bump), because that is the queue a green actually discharges.",
+  "seeds": [42, 1734029581, 7],
+  "variants": ["grid4x4", "rushhour"]
+}

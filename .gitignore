@@ -1,0 +1,28 @@
+# Forked from coworld-ctf, trimmed to what this repo has.
+#
+# Ignore files with no extension (build outputs land there), but keep the two
+# that matter.
+*
+!*/
+!*.*
+!LICENSE
+!Dockerfile
+
+# Ignore hidden files, but not the CI workflows or these two.
+.*
+!.github/
+!.github/**
+!.gitignore
+!.dockerignore
+
+# Normal ignores.
+nim.cfg
+nimcache/
+dist/
+replay-viewer/dist/
+*.replay
+!tests/fixtures/*.replay
+viewer-smoke.png
+viewer-smoke.json
+fixture-out/
+node_modules/

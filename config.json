@@ -1,0 +1,15 @@
+{
+  "seed": 42,
+  "variant": "grid4x4",
+  "num_agents": 4,
+  "minPlayers": 4,
+  "players": [{"name": "Alpha"}, {"name": "Beta"}, {"name": "Gamma"}, {"name": "Delta"}],
+  "tokens": ["token-0", "token-1", "token-2", "token-3"],
+  "turnTicks": 8,
+  "maxTicks": 256,
+  "wallClockBudgetSeconds": 240,
+  "lobbyJoinTimeoutTicks": 600,
+  "turnSpacingMs": 0,
+  "fastMode": true,
+  "showPlayerLabels": false
+}

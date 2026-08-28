@@ -1,0 +1,16 @@
+# ONE service, because the manifest's image placeholder is derived from the
+# COMPOSE SERVICE NAME (`{{GAME_IMAGE}}` is not a thing — the lantern 0.1.0
+# scar). coworld-ctf ships two services / two images; this fork uses the
+# one-image / two-entrypoints shape because the shared tools/ci/docker_smoke.sh
+# and tools/ci/policies.json both assume a single image (the knights-archers
+# precedent).
+#
+#   service sumo-traffic-signals  =>  placeholder {{SUMO_TRAFFIC_SIGNALS_IMAGE}}
+services:
+  sumo-traffic-signals:
+    image: coworld-sumo-traffic-signals:latest
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+      network: host

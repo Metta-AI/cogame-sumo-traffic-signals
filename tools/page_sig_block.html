@@ -1,0 +1,503 @@
+
+<!-- ============================================================
+     sumo-traffic-signals additions to the inherited coworld-ctf chrome
+     ============================================================
+     Everything above this banner is the classic coworld-ctf broadcast page,
+     edited only where the game demands and always behind SIG_MODE: the
+     scorebug plates' CONTENTS, the feed and beat routing, and the endcard's
+     stat columns. SIG_MODE latches on the first frame that carries a `city`
+     field — a classic replay never enters any of it.
+
+     The classic view panel (zoom bar plus board inset) and the first-person
+     picture-in-picture are REMOVED, markup, CSS and wiring: the board is a
+     fixed 34 x 26 cell city with no off-frame area, relayout() letterboxes it
+     whole at every width, and there is no per-car point of view worth showing
+     — the city is the shot.
+
+     Nothing here touches the transport band. relayout() still owns --hudscale,
+     --topband and --band on :root; the endcard still stops at
+     bottom: var(--band, 0px) and is still dismissed by every seek; and every
+     scrubber beat this block draws is a LABELLED, CLICKABLE BUTTON that seeks
+     on click, styled for EVERY kind the sim emits — wave, spillback, gridlock,
+     fallback and end, and no others. The builder is named `cityBeat` precisely
+     so it can never be shadowed by the chrome alias block's own beat alias
+     (the tandem 2026-08-23 hoisting trap).
+     ============================================================ -->
+<style>
+/* The scorebug grows a second row for the queue-pressure rail, so relayout()
+   measures it into --topband and no overlay ever sits in the transport band. */
+#scorebug { flex-wrap: wrap; }
+
+/* A policy name must never collapse to an ellipsis at 360 px. */
+.plate-name {
+  flex: 1 1 auto;
+  min-width: 3.2em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plate-av {
+  flex: none;
+  width: calc(18 * var(--u));
+  height: calc(18 * var(--u));
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center top;
+  box-shadow: 0 0 0 1px rgba(242, 232, 216, 0.35);
+}
+.quad-tag {
+  flex: none;
+  font-family: var(--finefont);
+  font-size: calc(7 * var(--u));
+  letter-spacing: 0.1em;
+  color: var(--paper-dim);
+  opacity: 0.85;
+}
+.served-label {
+  flex: none;
+  font-family: var(--finefont);
+  font-size: calc(7 * var(--u));
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+}
+.served-num {
+  flex: none;
+  font-size: calc(15 * var(--u));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sig-sub {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--u));
+  font-family: var(--finefont);
+  font-size: calc(7 * var(--u));
+  color: var(--paper-dim);
+}
+.fb-glyph { color: var(--amber); }
+
+/* ---- queue-pressure rail (TOP band, never the transport band) ---- */
+#sigrail {
+  flex: 1 1 100%;
+  order: 9;
+  display: flex;
+  align-items: center;
+  gap: calc(8 * var(--u));
+  padding: calc(2 * var(--u)) calc(6 * var(--u)) calc(3 * var(--u));
+  font-family: var(--finefont);
+  font-size: calc(7 * var(--u));
+  color: var(--paper-dim);
+}
+#sigpressure {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: calc(1 * var(--u));
+  min-width: 0;
+}
+.pr-row {
+  display: flex;
+  align-items: center;
+  gap: calc(4 * var(--u));
+  min-width: 0;
+}
+.pr-chip {
+  flex: none;
+  width: calc(6 * var(--u));
+  height: calc(6 * var(--u));
+}
+.pr-alias {
+  flex: none;
+  width: 4.2em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.pr-name {
+  flex: 1 1 auto;
+  min-width: 3.2em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--paper);
+}
+.pr-served, .pr-wait {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+.pr-bar {
+  flex: none;
+  width: 22%;
+  height: calc(4 * var(--u));
+  background: rgba(242, 232, 216, 0.14);
+}
+.pr-bar i { display: block; height: 100%; background: currentColor; }
+
+/* ---- corridor tally: eight arterials, four phase pips each ---- */
+#sigtally {
+  flex: none;
+  display: flex;
+  gap: calc(3 * var(--u));
+}
+.tl-bar { display: flex; flex-direction: column; align-items: center; gap: calc(1 * var(--u)); }
+.tl-pips { display: flex; gap: 1px; }
+.tl-pip { width: calc(3 * var(--u)); height: calc(4 * var(--u)); background: rgba(242, 232, 216, 0.2); }
+.tl-pip.ns { background: var(--green, #45a85e); }
+.tl-pip.ew { background: var(--blue, #3f7cc4); }
+.tl-pip.clr { background: var(--amber); }
+.tl-label { letter-spacing: 0.08em; }
+.tl-waves { color: var(--amber); font-variant-numeric: tabular-nums; }
+
+/* ---- spillback / gridlock alarms ---- */
+#sigchips { flex: none; display: flex; gap: calc(4 * var(--u)); }
+.sig-chip {
+  display: none;
+  align-items: center;
+  gap: calc(3 * var(--u));
+  padding: calc(1 * var(--u)) calc(4 * var(--u));
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.sig-chip.on { display: flex; }
+#chip-spill { background: rgba(232, 163, 61, 0.22); color: var(--amber); }
+#chip-ring { background: rgba(224, 82, 58, 0.28); color: var(--red, #e0523a); }
+
+/* ---- scrubber beats: CSS for every kind emitted and no others ---- */
+.beat-marker.wave { background: #7cf0a8; }
+.beat-marker.spillback { background: var(--amber); }
+.beat-marker.gridlock { background: var(--red, #e0523a); height: 100%; }
+.beat-marker.fallback { background: rgba(242, 232, 216, 0.5); }
+.beat-marker.end { background: var(--paper); }
+
+/* ---- density: the five .tiny rules, checked at 360 px ---- */
+/* 1. each plate keeps only alias + name + served */
+#stage.tiny .plate .quad-tag { display: none; }
+#stage.tiny .plate .served-label { display: none; }
+/* 2. the colour chip shrinks and the fallback glyph moves inline */
+#stage.tiny .plate .plate-av { width: 6px; height: 6px; }
+#stage.tiny .plate .sig-sub { display: inline; }
+/* 3. the queue heatmap becomes the primary readout: the board drops its car
+      chevrons for 4 px dashes (the module is told through the `t:` command). */
+#stage.tiny #board { --strict-text-bounds: 1; }
+/* 4. the corridor tally shows bars with no letters; the rail drops `waiting` */
+#stage.tiny .tl-label { display: none; }
+#stage.tiny .pr-wait { display: none; }
+/* 5. the gridlock chip is the word plus its tick count only */
+#stage.tiny #chip-ring .ring-list { display: none; }
+</style>
+<script>
+(function () {
+  'use strict';
+
+  var CTX = null;
+  var $ = function (id) { return document.getElementById(id); };
+  var built = false;
+  var beatsPlaced = false;
+  var seenBeats = {};
+  var lastTiny = null;
+  var lastExitLine = 0;
+
+  function esc(t) { return CTX ? CTX.esc(t) : String(t); }
+
+  function build() {
+    if (built) return;
+    built = true;
+    var bug = $('scorebug');
+    if (!bug) return;
+    var rail = document.createElement('div');
+    rail.id = 'sigrail';
+    rail.innerHTML =
+      '<div id="sigpressure"></div>' +
+      '<div id="sigtally"></div>' +
+      '<div id="sigchips">' +
+      '<span class="sig-chip" id="chip-spill">Spillback <span class="spill-list"></span></span>' +
+      '<span class="sig-chip" id="chip-ring">Gridlock <span class="ring-list"></span><span class="ring-ticks"></span></span>' +
+      '</div>';
+    bug.appendChild(rail);
+  }
+
+  // ---- scrubber beats -----------------------------------------------------
+  // Named cityBeat, and deliberately NOT the chrome's own beat-marker name:
+  // the alias block aliases that name onto the shared chrome, and a same-named
+  // function in this scope would be HOISTED over it (the tandem 2026-08-23
+  // trap). Every marker is a labelled, clickable button that seeks on click.
+  function cityBeat(tick, kind, slot, label) {
+    var key = tick + '|' + kind;
+    if (seenBeats[key]) return;
+    seenBeats[key] = true;
+    var scrub = $('scrub');
+    var s = CTX && CTX.getState ? CTX.getState() : null;
+    if (!scrub || !s) return;
+    var st = Math.max(0, s.st || 0);
+    var mx = Math.max(st + 1, s.mx || 1);
+    var frac = Math.min(1, Math.max(0, (tick - st) / (mx - st)));
+    var b = document.createElement('button');
+    b.className = 'beat-marker ' + kind + (slot >= 0 ? ' ' + colourOf(slot) : '');
+    b.style.left = (frac * 100) + '%';
+    b.title = label;
+    b.setAttribute('aria-label', label);
+    b.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (CTX) CTX.send('s:' + tick);
+    });
+    scrub.appendChild(b);
+  }
+
+  var COLOURS = ['red', 'blue', 'green', 'yellow'];
+  var ALIASES = ['ALPHA', 'BETA', 'GAMMA', 'DELTA'];
+  function colourOf(slot) { return COLOURS[slot] || ''; }
+  function aliasOf(slot) { return ALIASES[slot] || ('SEAT ' + slot); }
+
+  function placeBeats(s) {
+    if (beatsPlaced || !s.citybeats) return;
+    beatsPlaced = true;
+    for (var i = 0; i < s.citybeats.length; i++) {
+      var b = s.citybeats[i];
+      cityBeat(b.t, b.k, b.slot == null ? -1 : b.slot, b.label || b.k);
+    }
+  }
+
+  // ---- the queue-pressure rail -------------------------------------------
+  // Four rows, one per controller, sorted by waiting ASCENDING (best first),
+  // so a controller losing control of its quadrant is visible as its bar
+  // overtaking.
+  function renderPressure(s) {
+    var host = $('sigpressure');
+    if (!host) return;
+    var rows = [];
+    var total = 0;
+    for (var slot = 0; slot < 4; slot++) {
+      var r = (s.roster || []).filter(function (p) { return p.s === slot; })[0] || {};
+      var wait = r.wait || 0;
+      total += wait;
+      rows.push({ slot: slot, name: r.name || aliasOf(slot), served: r.served || 0, wait: wait, fb: r.fb || 0 });
+    }
+    rows.sort(function (a, b) { return a.wait - b.wait || a.slot - b.slot; });
+    var key = rows.map(function (r) { return r.slot; }).join(',');
+    if (host._key !== key) {
+      host._key = key;
+      host.innerHTML = '';
+      host._rows = {};
+      rows.forEach(function (r) {
+        var el = document.createElement('div');
+        el.className = 'pr-row ' + colourOf(r.slot);
+        el.innerHTML =
+          '<i class="pr-chip" style="background:currentColor"></i>' +
+          '<span class="pr-alias">' + aliasOf(r.slot) + '</span>' +
+          '<span class="pr-name"></span>' +
+          '<span class="pr-served"></span>' +
+          '<span class="pr-wait"></span>' +
+          '<span class="pr-bar"><i></i></span>';
+        host.appendChild(el);
+        host._rows[r.slot] = el;
+      });
+    }
+    rows.forEach(function (r) {
+      var el = host._rows[r.slot];
+      if (!el) return;
+      el.querySelector('.pr-name').textContent =
+        r.name + (r.fb > 0 ? ' \u21af' : '');
+      el.querySelector('.pr-served').textContent = r.served + ' out';
+      el.querySelector('.pr-wait').textContent = r.wait + ' car-s';
+      var share = total > 0 ? Math.round(r.wait * 100 / total) : 0;
+      el.querySelector('.pr-bar i').style.width = share + '%';
+    });
+  }
+
+  // ---- the corridor tally: a miniature time-space diagram ----------------
+  function renderTally(s) {
+    var host = $('sigtally');
+    if (!host || !s.tally) return;
+    if (host._n !== s.tally.length) {
+      host._n = s.tally.length;
+      host.innerHTML = '';
+      host._bars = [];
+      s.tally.forEach(function (t) {
+        var el = document.createElement('div');
+        el.className = 'tl-bar';
+        el.title = (t.axis === 'row' ? 'Row ' : 'Column ') + t.label + ' arterial';
+        el.innerHTML = '<span class="tl-pips"></span>' +
+          '<span class="tl-label">' + esc(t.label) + '</span>' +
+          '<span class="tl-waves"></span>';
+        host.appendChild(el);
+        host._bars.push(el);
+      });
+    }
+    s.tally.forEach(function (t, i) {
+      var el = host._bars[i];
+      if (!el) return;
+      var pips = el.querySelector('.tl-pips');
+      var want = (t.pips || []).length;
+      while (pips.children.length < want) pips.appendChild(document.createElement('i'));
+      (t.pips || []).forEach(function (phase, j) {
+        var pip = pips.children[j];
+        pip.className = 'tl-pip ' +
+          (phase === 'CLR' ? 'clr' : (phase === 'NSG' || phase === 'NSL') ? 'ns' : 'ew');
+        pip.title = phase;
+      });
+      el.querySelector('.tl-waves').textContent = t.waves > 0 ? String(t.waves) : '';
+    });
+  }
+
+  function renderChips(s) {
+    var spill = $('chip-spill');
+    var ring = $('chip-ring');
+    if (spill) {
+      var list = (s.spill || []);
+      spill.classList.toggle('on', list.length > 0);
+      spill.querySelector('.spill-list').textContent = list.join(' \u00b7 ');
+    }
+    if (ring) {
+      var links = (s.ring || []);
+      ring.classList.toggle('on', links.length > 0);
+      ring.querySelector('.ring-list').textContent = links.slice(0, 2).join(' \u00b7 ') +
+        (links.length > 2 ? ' +' + (links.length - 2) : '');
+      ring.querySelector('.ring-ticks').textContent =
+        links.length > 0 ? ' ' + (s.ringTicks || 0) + 's' : '';
+    }
+  }
+
+  // ---- the clock column --------------------------------------------------
+  function renderClockCol(s) {
+    var big = $('clock-time');
+    var cap = $('clock-caption');
+    if (big && s.ph !== 'lobby') {
+      big.textContent = 'THROUGH ' + (s.through || 0);
+      big.title = (s.through || 0) + ' of ' + (s.demand || 0) + ' cars out, par ' + (s.par || 0);
+    }
+    if (cap && s.ph !== 'lobby') {
+      cap.textContent = 'demand ' + (s.demand || 0) + ' \u00b7 waiting ' + (s.waiting || 0) +
+        ' \u00b7 spillback ' + ((s.spill || []).length) +
+        ' \u00b7 gridlock ' + ((s.ring || []).length ? 1 : 0) +
+        ' \u00b7 waves ' + (s.waves || 0);
+    }
+  }
+
+  // ---- density: tell the module when the board must draw its tiny readout --
+  function syncTiny() {
+    var tiny = !!($('stage') && $('stage').classList.contains('tiny'));
+    if (tiny === lastTiny) return;
+    lastTiny = tiny;
+    if (CTX) CTX.send(tiny ? 't:1' : 't:0');
+  }
+
+  // ---- the feed: plain language, never internal notation -----------------
+  function feed(html, cls) {
+    if (!CTX) return;
+    var row = document.createElement('div');
+    row.className = 'feed-row' + (cls ? ' ' + cls : '');
+    row.innerHTML = html;
+    CTX.pushFeed(row);
+  }
+
+  function who(slot) {
+    return '<span class="who ' + colourOf(slot) + '">' + aliasOf(slot) + '</span>';
+  }
+
+  function sigEvent(e, s, ctx) {
+    CTX = CTX || ctx;
+    switch (e.k) {
+      case 'order':
+        feed(who(e.slot) + '<span class="glyph">\u25b8</span>' +
+          '<span class="badge">' + esc(e.at) + ' ' + orderWords(e) + '</span>');
+        return true;
+      case 'say':
+        feed(who(e.slot) + '<span class="glyph">\u25b8</span>' +
+          '<span class="badge">radio: "' + esc(e.text) + '"</span>', 'radiorow');
+        return true;
+      case 'wave':
+        cityBeat(e.t, 'wave', -1, 'green wave on ' + e.corridor + ' — click to jump here');
+        CTX.banner(('row ' + e.corridor + ' ' + e.dir + ' wave — ' +
+          e.vehicles + ' cars, 4 signals clean').toUpperCase(), 'wipe accent green');
+        feed('<span class="badge">' + esc(String(e.corridor)) + ' ' + esc(String(e.dir)) +
+          ' WAVE \u2014 ' + e.vehicles + ' CARS</span>');
+        return true;
+      case 'spillback':
+        cityBeat(e.t, 'spillback', e.slot, esc(e.link) + ' filled up — click to jump here');
+        feed('<span class="badge">SPILLBACK ' + esc(e.link) + ' \u2014 ' +
+          aliasOf(e.slot) + "'S BLOCK IS FULL</span>");
+        return true;
+      case 'gridlock':
+        cityBeat(e.t, 'gridlock', -1, 'gridlock ring — click to jump here');
+        CTX.banner('GRIDLOCK \u2014 ' + (e.ats || []).slice(0, 4).join(' \u00b7 ') +
+          ' RING', 'steal accent red');
+        feed('<span class="badge">GRIDLOCK \u2014 ' +
+          esc((e.links || []).slice(0, 4).join(' \u00b7 ')) + ' RING</span>');
+        return true;
+      case 'gridlockclear':
+        CTX.banner('GRIDLOCK BROKEN \u2014 ' +
+          esc((e.links || [])[0] || '') + ' DRAINED', 'returned accent green');
+        return true;
+      case 'starve':
+        feed('<span class="badge">' + esc(e.at) + ' STARVED \u2014 ' +
+          esc(e.approach) + ' LANE BLOCKED, CITY FORCED THE PHASE</span>');
+        return true;
+      case 'gatejam':
+        feed('<span class="badge">' + esc(e.gate) +
+          ' GATE QUEUE FULL \u2014 TURNING CARS AWAY</span>');
+        return true;
+      case 'exit':
+        // ~400 exits an episode: print one line every 25th car so the feed
+        // never floods.
+        if (e.total && e.total - lastExitLine >= 25) {
+          lastExitLine = e.total;
+          feed('<span class="badge">' + e.total + ' CARS THROUGH</span>');
+        }
+        return true;
+      case 'fallback':
+        cityBeat(e.t, 'fallback', e.slot,
+          aliasOf(e.slot) + ' missed the call — click to jump here');
+        feed(who(e.slot) + '<span class="glyph">\u25b8</span>' +
+          '<span class="badge tk">MISSED THE CALL \u2014 greedy phases (' +
+          esc(e.cause) + ')</span>');
+        return true;
+      case 'end':
+        cityBeat(e.t || 0, 'end', -1, 'the city settles — click to jump here');
+        return true;
+      case 'turn':
+      case 'phasechange':
+      case 'spillclear':
+      case 'gateclear':
+        return true;
+    }
+    return false;
+  }
+
+  function orderWords(e) {
+    if (e.verb === 'hold') return 'holds';
+    if (e.verb === 'auto') return 'runs the greedy actuator';
+    if (e.verb === 'phase') return '\u2192 ' + e.phase + ' (' + greenWords(e.phase) + ')';
+    return '\u2192 ' + e.phase + ' at +' + e.delay + ' (offset)';
+  }
+  function greenWords(phase) {
+    if (phase === 'NSG') return 'north-south green';
+    if (phase === 'NSL') return 'north-south left';
+    if (phase === 'EWG') return 'eastbound green';
+    return 'east-west left';
+  }
+
+  function sigFrame(s, ctx, jumped) {
+    CTX = CTX || ctx;
+    build();
+    if (jumped) {
+      lastExitLine = 0;
+    }
+    placeBeats(s);
+    renderPressure(s);
+    renderTally(s);
+    renderChips(s);
+    renderClockCol(s);
+    syncTiny();
+  }
+
+  window.SignalsChrome = {
+    install: function (ctx) { CTX = ctx; build(); },
+    frame: sigFrame,
+    event: sigEvent
+  };
+})();
+</script>
+
+</body>
+</html>

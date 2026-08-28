@@ -1,0 +1,35 @@
+[
+  {
+    "name": "signals-greenwave",
+    "run": "/bin/sumo-traffic-signals-player",
+    "env": {
+      "PLAYER_PROMPT": "Run the city as two avenues and publish your offsets. On turn 1, pick the avenue\nthrough your quadrant with the most inbound cars and declare it your wave direction in\none radio line - \"row C eastbound is my wave: C1 at +0, C2 at +6, Delta take C3 at\n+12\".\nEvery turn, walk your four intersections in this order: the two on your wave avenue\nfirst, then the other two.\nOn the wave avenue, give the upstream intersection \"phase\" with the through phase for\nthat direction (EWG for east-west, NSG for north-south) and give the downstream one\n\"wave\" with the SAME phase and delay equal to the block length in cells between them\n(6 east-west, 4 north-south) minus one. Repeat the offsets on the radio every third\nturn and whenever a neighbour's radio line names a different offset.\nBefore you issue a through phase, read that intersection's \"exits\" list. If the exit\nyou are about to feed is full, do NOT open it: issue \"hold\" instead, say \"holding C2,\nC2>C3 is full\", and spend the green on the cross street with the longest queue.\nOff the wave avenue, give the cross phase whenever the cross queues total 6 or more, or\nwhenever a stop-line movement is \"left\" with blocked_ticks over 20 - then give NSL or\nEWL for one turn and go straight back.\nIf your own \"inbound\" shows a platoon of 4 or more arriving in 3 ticks or fewer, use\n\"wave\" with a delay that matches it rather than opening early into an empty box.\nNever use \"auto\" on the wave avenue; use it only on an intersection whose queues are\nall under 2 so you can spend your attention elsewhere.",
+      "PLAYER_POLICY_LABEL": "greenwave"
+    }
+  },
+  {
+    "name": "signals-gatekeeper",
+    "run": "/bin/sumo-traffic-signals-player",
+    "env": {
+      "PLAYER_PROMPT": "Protect the network from spillback and let throughput follow. Your rule, decided once\nand never dropped: NEVER give a green whose exit link is full, and always give the\ngreen whose exit link is emptiest.\nEvery turn, for each of your four intersections in this order - the ones with a full\nexit first, then the rest:\n1. Read \"exits\". Mark every exit with occupancy equal to capacity as closed.\n2. Score each phase by the queue it would serve MINUS 4 for every closed exit it would\n   feed. Issue \"phase\" for the best-scoring phase; if the current phase is the best,\n   issue \"hold\".\n3. If EVERY phase feeds a closed exit, issue \"hold\" and say which link is blocking you,\n   naming the owner from the \"exits\" list - \"Beta, B3>C3 is full, C3 is choking my B2\".\nGate the edges. On any intersection with a gate approach, if your interior exits are\nover two thirds full, hold the gate approach red - a car still outside the city costs\nnothing and blocks nobody, and rejected demand is not what is scored.\nWatch \"blocked_ticks\" with cause \"phase\". Any stop-line car over 30 ticks gets its\nphase next turn, before the city forces it on you: a starvation override wastes your\nwhole turn.\nWhen \"spillback\" in network_status names a link inside your quadrant, spend two turns\ndraining it: give the phases that empty it and hold the phases that feed it, and say\nwhat you are doing so nobody refills it.\nAnswer every radio line that asks you to hold something. If you cannot, say so and say\nwhy.",
+      "PLAYER_POLICY_LABEL": "gatekeeper"
+    },
+    "player": "ply_bac48eb1-662e-44f8-973d-f3e016dccf5d"
+  },
+  {
+    "name": "signals-greedy",
+    "run": "/bin/sumo-traffic-signals-player",
+    "env": {
+      "PLAYER_SCRIPTED": "greedy",
+      "PLAYER_POLICY_LABEL": "greedy"
+    }
+  },
+  {
+    "name": "signals-fixedcycle",
+    "run": "/bin/sumo-traffic-signals-player",
+    "env": {
+      "PLAYER_SCRIPTED": "fixedcycle",
+      "PLAYER_POLICY_LABEL": "fixedcycle"
+    }
+  }
+]

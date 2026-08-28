@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>sumo-traffic-signals renderer fixture</title>
+<!--
+  The WORST-CASE renderer fixture.
+
+  tools/ci/docker_smoke.sh runs with NO ANTHROPIC_API_KEY, so every seat in the
+  CI replay plays its scripted baseline and a scripted baseline emits no `say`
+  at all: the smoke replay CANNOT exercise the feed's radio-text path, the
+  pressure rail's real policy names, or the endcard's name column (the
+  cogchemists 2026-08-24 scar). This page is the only gate that does.
+
+  It EXECUTES THE SHIPPED PAGE. It fetches the bundle's own index.html, swaps
+  ONLY the wasm entry (static_replay.js) for a stub adapter, and runs the real
+  chrome — real chrome_common.js, real broadcast_core.js, real appended game
+  block — inside a srcdoc iframe, at several canvas widths including 360 px,
+  with a full-cap 120-rune `say` on all four seats, a fully populated pressure
+  rail, an active gridlock ring across four links, two full gate queues and a
+  green-wave banner. It does NOT re-implement the drawing (the particle-worlds
+  2026-08-26 scar).
+
+  Because `viewer_smoke.mjs --strict-text-bounds` reads
+  `window.__coworldTextBounds` off the TOP document, the fixture transcribes the
+  chrome's rendered text runs onto a canvas HERE, at each run's measured
+  geometry, so a caption anchored where there is no room shows up as a draw
+  that never once landed inside the canvas.
+-->
+<style>
+  html, body { margin: 0; background: #14100c; color: #f2e8d8;
+    font-family: ui-monospace, monospace; }
+  #frame { border: 0; display: block; background: #000; }
+  #shot { display: block; background: #14100c; }
+  #log { padding: 6px 10px; font-size: 12px; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<div id="log">renderer fixture: booting…</div>
+<iframe id="frame" width="360" height="640"></iframe>
+<canvas id="shot" width="360" height="640"></canvas>
+<script>
+(function () {
+  'use strict';
+  var logEl = document.getElementById('log');
+  var frame = document.getElementById('frame');
+  var shot = document.getElementById('shot');
+  var lines = [];
+  function log(text) {
+    lines.push(text);
+    logEl.textContent = lines.join('\n');
+  }
+  function fail(text) {
+    log('FAIL ' + text);
+    document.documentElement.setAttribute('data-replay-error', text);
+  }
+
+  // A 120-rune say, exactly at MaxSayRunes, with a 4-byte emoji sitting on the
+  // boundary: the cap the server enforces is the cap the chrome must render.
+  var SAY = 'row C eastbound is my wave: C1 at +0, C2 at +6, Delta take C3 at ' +
+            '+12 and hold B3 while C2>C3 drains, please \uD83D\uDEA6';
+  SAY = Array.from(SAY).slice(0, 120).join('');
+
+  var COLOURS = ['red', 'blue', 'green', 'yellow'];
+  var ALIASES = ['Alpha', 'Beta', 'Gamma', 'Delta'];
+  var QUADS = ['NW', 'NE', 'SW', 'SE'];
+  var NAMES = ['daveey', 'daveey-1', 'Baseline (1)', 'Baseline (2)'];
+
+  function state(extra) {
+    var teams = {};
+    var roster = [];
+    COLOURS.forEach(function (colour, slot) {
+      teams[colour] = {
+        lives: 214 + slot, policies: [NAMES[slot]], alias: ALIASES[slot],
+        quad: QUADS[slot], served: 214 + slot, wait: 742 + slot * 40,
+        changes: 38 + slot, fb: slot === 1 ? 2 : 0, llm: slot < 2 ? 31 : 0,
+        kind: slot < 2 ? 'llm' : 'scripted', dead: false
+      };
+      roster.push({
+        s: slot, name: NAMES[slot], alias: ALIASES[slot], team: colour,
+        quad: QUADS[slot], pol: NAMES[slot], kind: teams[colour].kind,
+        signals: ['A1', 'A2', 'B1', 'B2'], served: 214 + slot,
+        wait: 742 + slot * 40, changes: 38 + slot, fb: teams[colour].fb,
+        dead: false
+      });
+    });
+    var tally = [];
+    ['A', 'B', 'C', 'D', '1', '2', '3', '4'].forEach(function (label, i) {
+      tally.push({
+        label: label, axis: i < 4 ? 'row' : 'col',
+        pips: ['NSG', 'EWG', 'CLR', 'NSL'], waves: 1 + (i % 3)
+      });
+    });
+    var base = {
+      t: 180, mt: 256, ph: 'playing', lob: 0, pl: true, sp: 1, mx: 256, st: 0,
+      lp: false, sk: false, ff: false, en: true, mm: 137, bs: 1, pov: -1,
+      teams: teams, roster: roster, events: [],
+      city: { rows: 4, cols: 4, cell: 16, w: 34, h: 26 },
+      turn: 23, turns: 32, turnTicks: 8, through: 261, par: 260, demand: 340,
+      rejected: 14, waiting: 3142, waves: 11, spills: 26, gridlocks: 1,
+      gridlockTicks: 34, starves: 3, deferred: 61, travel: 14880, stops: 1104,
+      spill: ['C2>C3', 'B3>C3', 'D2>D3'],
+      ring: ['B3>C3', 'C3>C2', 'C2>B2', 'B2>B3'], ringTicks: 34, tally: tally,
+      lulls: [[40, 90]],
+      citybeats: [
+        { t: 30, k: 'wave', slot: -1, label: 'green wave on row C — click to jump here' },
+        { t: 60, k: 'spillback', slot: 0, label: 'C2>C3 filled up — click to jump here' },
+        { t: 90, k: 'gridlock', slot: -1, label: 'gridlock ring — click to jump here' },
+        { t: 120, k: 'fallback', slot: 1, label: 'Beta missed the call — click to jump here' },
+        { t: 241, k: 'end', slot: -1, label: 'the city settles — click to jump here' }
+      ],
+      lead: { teams: COLOURS, pts: [[0, 0, 0, 0, 0], [120, 161, 4, 161, 4], [240, 372, 14, 372, 14]] }
+    };
+    for (var key in (extra || {})) base[key] = extra[key];
+    return base;
+  }
+
+  function events() {
+    var list = [{ k: 'turn', n: 23 }];
+    for (var slot = 0; slot < 4; slot++) {
+      list.push({ k: 'order', slot: slot, at: 'C2', verb: 'wave', phase: 'EWG', delay: 6, t: 180 });
+      list.push({ k: 'say', slot: slot, text: SAY, t: 180 });
+    }
+    list.push({ k: 'wave', corridor: 'C', dir: 'eastbound', ats: ['C1', 'C2', 'C3', 'C4'], vehicles: 5, t: 181 });
+    list.push({ k: 'spillback', link: 'C2>C3', at: 'C3', slot: 3, t: 182 });
+    list.push({ k: 'gridlock', links: ['B3>C3', 'C3>C2', 'C2>B2', 'B2>B3'], ats: ['C3', 'C2', 'B2', 'B3'], t: 183 });
+    list.push({ k: 'gatejam', gate: 'nA3', at: 'A3', slot: 1, t: 184 });
+    list.push({ k: 'gatejam', gate: 'sD2', at: 'D2', slot: 2, t: 184 });
+    list.push({ k: 'starve', at: 'A2', slot: 0, approach: 'E', t: 185 });
+    list.push({ k: 'fallback', slot: 1, cause: 'timeout', t: 186 });
+    list.push({ k: 'exit', gate: 'eC4', travel: 40, stops: 2, total: 275, t: 187 });
+    return list;
+  }
+
+  var overState = {
+    t: 241, ph: 'gameover', events: [], hold: 7,
+    over: {
+      winner: '', draw: false, timeLimit: false,
+      teams: {
+        red: { lives: 214, served: 214, wait: 742, changes: 38, score: 371985000 },
+        blue: { lives: 231, served: 231, wait: 861, changes: 41, score: 371984990 },
+        green: { lives: 208, served: 208, wait: 799, changes: 36, score: 371985000 },
+        yellow: { lives: 226, served: 226, wait: 740, changes: 39, score: 371985000 }
+      },
+      reason: 'complete', endRule: 'cleared', through: 372, par: 260,
+      demand: 386, rejected: 14, waiting: 3142, waves: 11, spills: 26,
+      gridlocks: 1, score: 371985000, met: true
+    }
+  };
+
+  // ---- transcribe the chrome's text runs onto a canvas HERE --------------
+  // viewer_smoke.mjs instruments CanvasRenderingContext2D per FRAME and reads
+  // its report off the TOP document, so the iframe's own canvas draws are
+  // invisible to it. Walking the rendered chrome and re-drawing each visible
+  // run at its measured geometry is what turns "the DOM clipped a caption"
+  // into a canvas draw that never once landed inside.
+  function transcribe(doc, width, height) {
+    var ctx = shot.getContext('2d');
+    shot.width = width;
+    shot.height = height;
+    ctx.clearRect(0, 0, width, height);
+    ctx.textBaseline = 'alphabetic';
+    var host = doc.getElementById('chrome') || doc.body;
+    var walker = doc.createTreeWalker(host, 4 /* SHOW_TEXT */, null);
+    var drawn = 0;
+    var node;
+    while ((node = walker.nextNode())) {
+      var text = (node.nodeValue || '').trim();
+      if (!text) continue;
+      var parent = node.parentElement;
+      if (!parent) continue;
+      var range = doc.createRange();
+      range.selectNodeContents(node);
+      var box = range.getBoundingClientRect();
+      range.detach && range.detach();
+      if (!box.width && !box.height) continue;
+      var style = doc.defaultView.getComputedStyle(parent);
+      if (style.display === 'none' || style.visibility === 'hidden') continue;
+      var size = parseFloat(style.fontSize) || 12;
+      ctx.font = size + 'px ' + (style.fontFamily || 'monospace');
+      ctx.fillStyle = style.color || '#f2e8d8';
+      ctx.fillText(text, box.left, box.top + size);
+      drawn++;
+    }
+    return drawn;
+  }
+
+  function drive(win, width, height) {
+    var cfg = win.__CFG__;
+    if (!cfg || typeof cfg.onText !== 'function') {
+      throw new Error('the shipped page never created its core');
+    }
+    cfg.onText(JSON.stringify(state({ ph: 'lobby', lob: 9, t: 0 })));
+    cfg.onText(JSON.stringify(state()));
+    cfg.onText(JSON.stringify(state({ events: events() })));
+    var runs = transcribe(win.document, width, height);
+    cfg.onText(JSON.stringify(state(overState)));
+    runs += transcribe(win.document, width, height);
+    return runs;
+  }
+
+  var WIDTHS = [360, 620, 900];
+  var widthIndex = 0;
+  var totalRuns = 0;
+
+  function stubAdapter() {
+    return '<script>(function(){' +
+      'var T={scale:1,offsetX:0,offsetY:0,nativeW:544,nativeH:416,zoom:1,' +
+      'minZoom:1,maxZoom:12,fitScale:1,focusX:0,focusY:0,visW:544,visH:416};' +
+      'window.SignalsStaticReplay={createCore:function(c){window.__CFG__=c;' +
+      'return {start:function(){},stop:function(){},sendCommand:function(){},' +
+      'clickMap:function(){},zoomAt:function(){},setZoom:function(){},' +
+      'panBy:function(){},panByMap:function(){},panTo:function(){},' +
+      'resetView:function(){},attachMinimap:function(){},' +
+      'getTransform:function(){return T;},setViewportFit:function(){},' +
+      'setViewportSize:function(){},getPaceStats:function(){return {enabled:false,' +
+      'queued:0,presented:0,interval:42,draws:1};}};}};' +
+      '})();<\/script>';
+  }
+
+  function runWidth(pageHtml) {
+    if (widthIndex >= WIDTHS.length) {
+      log('renderer fixture OK: ' + totalRuns + ' text runs transcribed at ' +
+        WIDTHS.join(', ') + ' px');
+      document.documentElement.setAttribute('data-replay-loaded', 'true');
+      return;
+    }
+    var width = WIDTHS[widthIndex++];
+    var height = Math.max(320, Math.round(width * 16 / 9));
+    frame.width = width;
+    frame.height = height;
+    frame.style.width = width + 'px';
+    frame.style.height = height + 'px';
+    frame.onload = function () {
+      try {
+        var runs = drive(frame.contentWindow, width, height);
+        totalRuns += runs;
+        log('width ' + width + 'px: ' + runs + ' text runs');
+      } catch (error) {
+        fail('width ' + width + 'px: ' + (error && error.message || error));
+        return;
+      }
+      setTimeout(function () { runWidth(pageHtml); }, 40);
+    };
+    frame.srcdoc = pageHtml;
+  }
+
+  fetch('./index.html')
+    .then(function (response) {
+      if (!response.ok) throw new Error('index.html HTTP ' + response.status);
+      return response.text();
+    })
+    .then(function (html) {
+      var swapped = html.replace(
+        /<script src="\.\/static_replay\.js"><\/script>/,
+        stubAdapter());
+      if (swapped === html) {
+        throw new Error('could not find the static_replay.js entry in index.html');
+      }
+      runWidth(swapped);
+    })
+    .catch(function (error) {
+      fail(String(error && error.message || error));
+    });
+})();
+</script>
+</body>
+</html>
