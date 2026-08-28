@@ -207,6 +207,12 @@ proc accountWaits*(sim: var SimServer) =
       inc sim.cars[car].waitSinceLastCrossing
       inc sim.networkWaitTicks
       inc sim.seatWaitTicks[owner]
+      ## Step 8's stop rule applies to every car still on the network, "link
+      ## cell OR GATE QUEUE": a car that moved last tick and not on this one
+      ## has stopped, and the car that just joined the queue is the commonest
+      ## case of it. `stops` is measured, never scored, and never hashed.
+      if sim.cars[car].movedLastTick:
+        inc sim.cars[car].stops
 
 proc rollMovedFlags*(sim: var SimServer) =
   ## Carries `movedThisTick` into `movedLastTick` and clears it, so tick step
