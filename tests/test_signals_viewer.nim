@@ -297,3 +297,21 @@ suite "the label manifest":
     for label in labelVocabulary():
       check "daveey" notin label
       check "Baseline" notin label
+
+  test "41. each quadrant's corner carries its OWNER'S alias initial":
+    ## It used to draw the first character of the quadrant's first
+    ## intersection name — "A" for both Alpha (A1) and Beta (A3) — so the
+    ## corner identified a row, not a controller.
+    var initials: seq[char]
+    for slot in 0 ..< MaxSeats:
+      let glyph = quadrantCornerGlyph(slot)
+      checkpoint("slot " & $slot & " alias " & seatAlias(slot))
+      check glyph == seatAlias(slot)[0]
+      ## And the board can actually draw it: a glyph outside the table would
+      ## render as nothing at all.
+      check glyphIndex(glyph) >= 0
+      check glyph notin initials
+      initials.add(glyph)
+    ## The alphabet stays closed, so no real player name can be drawn.
+    for ch in "daveey":
+      check glyphIndex(ch) < 0

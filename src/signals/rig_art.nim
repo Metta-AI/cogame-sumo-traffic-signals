@@ -149,7 +149,7 @@ proc carColourRgba*(index: int): Rgba =
 #  A 3x5 pixel font — just the eight glyphs the board actually needs
 # ---------------------------------------------------------------------------
 
-const Glyphs: array[8, array[5, uint8]] = [
+const Glyphs: array[9, array[5, uint8]] = [
   [0b010'u8, 0b101, 0b111, 0b101, 0b101],   # A
   [0b110'u8, 0b101, 0b110, 0b101, 0b110],   # B
   [0b011'u8, 0b100, 0b100, 0b100, 0b011],   # C
@@ -157,10 +157,15 @@ const Glyphs: array[8, array[5, uint8]] = [
   [0b010'u8, 0b110, 0b010, 0b010, 0b111],   # 1
   [0b110'u8, 0b001, 0b010, 0b100, 0b111],   # 2
   [0b111'u8, 0b001, 0b011, 0b001, 0b111],   # 3
-  [0b101'u8, 0b101, 0b111, 0b001, 0b001]    # 4
+  [0b101'u8, 0b101, 0b111, 0b001, 0b001],   # 4
+  [0b011'u8, 0b100, 0b101, 0b101, 0b011]    # G, for Gamma's corner
 ]
 
-proc glyphIndex(ch: char): int =
+proc glyphIndex*(ch: char): int =
+  ## The board's whole alphabet: the four row letters, the four column digits
+  ## and `G`, which only the quadrant corners use. A character outside it
+  ## draws NOTHING, which is the last line of the two-name-space rule — a real
+  ## player name cannot be rendered on the board even by accident.
   case ch
   of 'A': 0
   of 'B': 1
@@ -170,6 +175,7 @@ proc glyphIndex(ch: char): int =
   of '2': 5
   of '3': 6
   of '4': 7
+  of 'G': 8
   else: -1
 
 proc drawGlyph*(chip: var Chip, ch: char, x0, y0, scale: int, colour: Rgba) =
@@ -188,6 +194,16 @@ proc drawLabel*(chip: var Chip, text: string, x0, y0, scale: int, colour: Rgba) 
   for ch in text:
     chip.drawGlyph(ch, x, y0, scale, colour)
     x += 4 * scale
+
+proc quadrantCornerGlyph*(slot: int): char =
+  ## The letter set at a quadrant's outer corner: the OWNER'S ALIAS initial
+  ## (Alpha, Beta, Gamma, Delta -> A, B, G, D), in the owner's tint. It used
+  ## to be the first character of the quadrant's first intersection name,
+  ## which drew "A" for both Alpha (A1) and Beta (A3) and "C" for both Gamma
+  ## and Delta — a row letter, identifying nobody. An alias is an in-game
+  ## name, so the two-name-space rule is untouched.
+  let alias = seatAlias(slot)
+  if alias.len == 0: '?' else: alias[0]
 
 # ---------------------------------------------------------------------------
 #  The baked city bed
@@ -368,7 +384,7 @@ proc bakeCityBed*(city: City, config: GameConfig): Chip =
     if slot == 3:
       lx = boxX(col + 1) * CellPx + 18
       ly = boxY(row + 1) * CellPx + 18
-    result.drawLabel($intersectionName(firstAt)[0], max(2, lx), max(2, ly), 3,
+    result.drawLabel($quadrantCornerGlyph(slot), max(2, lx), max(2, ly), 3,
       rgba(int(tint.r), int(tint.g), int(tint.b), 210))
 
 proc bedTile*(bed: Chip, index: int): Chip =
