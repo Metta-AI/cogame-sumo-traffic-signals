@@ -170,6 +170,17 @@
 .beat-marker.fallback { background: rgba(242, 232, 216, 0.5); }
 .beat-marker.end { background: var(--paper); }
 
+/* The inherited headline was one nowrap line carrying a policy name, clipped
+   with an ellipsis. This one carries the city's whole verdict, so it WRAPS and
+   scales instead: a clipped headline reads as a truncated number. */
+#endcard .headline {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: calc(21 * var(--u));
+  max-width: 96%;
+}
+
 /* ---- density: the five .tiny rules, checked at 360 px ---- */
 /* 1. each plate keeps only alias + name + served */
 #stage.tiny .plate .quad-tag { display: none; }
@@ -185,6 +196,7 @@
 #stage.tiny .pr-wait { display: none; }
 /* 5. the gridlock chip is the word plus its tick count only */
 #stage.tiny #chip-ring .ring-list { display: none; }
+#stage.tiny #endcard .headline { font-size: calc(15 * var(--u)); }
 </style>
 <script>
 (function () {

@@ -292,6 +292,40 @@ def main() -> None:
     page = replace_once(
         page, "  var setHandicap = C.setHandicap;\n", "", "the setHandicap alias"
     )
+    # The armed cog pose belonged to the first-person billboards, which are
+    # gone; this fork ships only the `_front` masters (design SS-Sim module,
+    # "Kept, by path"), so the `_front_gun` requests were twelve 404s on every
+    # page load.
+    page = replace_once(
+        page,
+        """  var COG_ART = {}, COG_ART_GUN = {};
+  ['red', 'blue', 'green', 'yellow'].forEach(function (team) {
+    COG_ART[team] = new Image();
+    COG_ART[team].src = COG_BASE + '/soldier_' + team + '_front.png';
+    COG_ART_GUN[team] = new Image();
+    COG_ART_GUN[team].src = COG_BASE + '/soldier_' + team + '_front_gun.png';
+  });""",
+        """  var COG_ART = {};
+  ['red', 'blue', 'green', 'yellow'].forEach(function (team) {
+    COG_ART[team] = new Image();
+    COG_ART[team].src = COG_BASE + '/soldier_' + team + '_front.png';
+  });""",
+        "the armed cog pose",
+    )
+    page = replace_once(
+        page,
+        """  function cogArtFor(team, armed) {
+    var gun = COG_ART_GUN[team], plain = COG_ART[team];
+    if (armed && cogArtReady(gun)) return gun;
+    if (cogArtReady(plain)) return plain;
+    return cogArtReady(gun) ? gun : null;
+  }""",
+        """  function cogArtFor(team, armed) {
+    var plain = COG_ART[team];
+    return cogArtReady(plain) ? plain : null;
+  }""",
+        "the armed cog pose picker",
+    )
 
     # ------------------------------------------------- JS: the splice hook ---
     page = replace_all(page, "window.PaintballChrome", "window.SignalsChrome",
@@ -474,7 +508,7 @@ SIGNALS_ENDCARD = """  // ======================================================
     var teams = activeTeams(s);
     ensureEndcardTeams(teams);
     $('ec-headline').textContent =
-      (o.through || 0) + ' OF ' + (o.demand || 0) + ' CARS THROUGH — PAR ' +
+      (o.through || 0) + '/' + (o.demand || 0) + ' CARS THROUGH \u00b7 PAR ' +
       (o.par || 0) + (o.met ? ' MET' : ' MISSED');
     $('ec-headline').classList.toggle('red', (o.gridlocks || 0) > 0);
     $('ec-wincond').textContent = endcardRule(o);

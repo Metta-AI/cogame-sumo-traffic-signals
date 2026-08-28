@@ -118,7 +118,7 @@ suite "endcard labels":
     check "<span>Waves</span>" in page
     check "<span>Spillbacks</span>" in page
     check "CITY SCORE " in page
-    check "CARS THROUGH \u2014 PAR " in page
+    check "CARS THROUGH \u00b7 PAR " in page
     check "green waves, " in page
     check "car-seconds lost, " in page
 

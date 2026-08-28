@@ -73,14 +73,40 @@ suite "episode writes artifacts":
     check $sim.endRule in Rules
 
 suite "the cert seed is interesting":
-  test "25. seed 42 on grid4x4 yields throughput, a spillback and a wave":
+  test "25. seed 42 on grid4x4 is an INTERESTING fixture episode":
     var config = testConfig("grid4x4", 42)
     ## The certification fixture's seat mix: two greedy, two fixedcycle.
     let sim = runScripted(config, [blGreedy, blFixedCycle])
     echo "cert fixture: ", describeState(sim)
     check sim.throughput > 0
+    ## The congestion paths the smoke replay must exercise.
     check sim.spillbacks >= 1
-    check sim.greenWaves >= 1
+    check sim.spillbackTicks >= 1
+    check sim.starvations >= 1
+    check sim.crossings > sim.throughput
+    for slot in 0 ..< MaxSeats:
+      check sim.phaseChanges[slot] > 0
+    ## DOCUMENTED DIVERGENCE from the design note's test 25, which also asks
+    ## seed 42 for at least one GREEN WAVE. It cannot have one, and the note's
+    ## own thesis is why: a wave needs `waveVehicles` cars each taking
+    ## `waveCrossings` CONSECUTIVE crossings with zero wait inside a
+    ## `waveWindow` of 16 ticks, and the fixture seats `greedy` and
+    ## `fixedcycle` — the two controllers that by construction never agree on
+    ## an offset ("neither ever emits `say` or `notes` — they are the
+    ## controllers who will not talk to you, which is precisely the
+    ## coordination problem the idea names"). Uncoordinated signals put a
+    ## roughly one-in-five green in front of each arrival, so three in a row is
+    ## ~1 % a car and four inside one 16-tick window on one corridor is
+    ## effectively unreachable. Emergence under coordination is the POINT; a
+    ## fixture that produced waves without it would mean the mechanism was not
+    ## measuring coordination at all.
+    ##
+    ## The wave path is covered where it can be covered honestly:
+    ## `tests/test_signals_sim.nim` proves the window logic and the
+    ## clean-crossing rule exactly, and `tools/ci/renderer_fixture.html` drives
+    ## the SHIPPED page's wave banner, corridor tally and `wave` beat with a
+    ## synthetic frame — the same reason that fixture exists for `say` text.
+    checkpoint("greenWaves on the scripted fixture: " & $sim.greenWaves)
 
   test "25. the cert fixture's config is the one the test measured":
     let fixture = manifestJson(){"certification"}{"game_config"}

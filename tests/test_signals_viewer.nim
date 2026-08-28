@@ -98,17 +98,27 @@ suite "chrome provenance":
       for part in text[4 .. ^1].split(','):
         let pair = part.split('=')
         if pair.len == 2 and "C." in pair[1]:
-          aliases.add(pair[0].strip())
+          let name = pair[0].strip()
+          ## One-character helpers (`$`) are re-declared in the block's own
+          ## scope on purpose and cannot collide: the block is its own IIFE,
+          ## which the structural check below pins.
+          if name.len >= 2:
+            aliases.add(name)
     check aliases.len >= 8
     for alias in aliases:
       checkpoint("chrome alias " & alias)
       check ("function " & alias & "(") notin block0
       check ("var " & alias & " ") notin block0
       check ("var " & alias & "=") notin block0
-    ## The beat builder is cityBeat, never markBeat.
+    ## The beat builder is cityBeat, never the chrome's own beat-marker name.
     check "function cityBeat(" in block0
     check "function markBeat(" notin block0
     check "markBeat(" notin block0
+    ## And the whole block is ONE IIFE, so no declaration in it is hoisted into
+    ## the page's scope at all — the structural guarantee behind the rule.
+    check "(function () {" in block0
+    check "})();" in block0
+    check block0.find("(function () {") < block0.find("window.SignalsChrome = {")
 
   test "38. the beat CSS is exactly the kinds this game emits":
     let page = repoFile("client/replay_broadcast.html")

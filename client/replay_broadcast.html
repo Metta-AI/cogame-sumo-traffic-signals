@@ -1153,21 +1153,17 @@ body[data-embed] #board { top: 0; height: 100%; }
   var COG_BASE = window.SignalsStaticReplay
     ? '.'
     : location.pathname.replace(/\/clients?\/[^/]*$/, '') + '/client';
-  var COG_ART = {}, COG_ART_GUN = {};
+  var COG_ART = {};
   ['red', 'blue', 'green', 'yellow'].forEach(function (team) {
     COG_ART[team] = new Image();
     COG_ART[team].src = COG_BASE + '/soldier_' + team + '_front.png';
-    COG_ART_GUN[team] = new Image();
-    COG_ART_GUN[team].src = COG_BASE + '/soldier_' + team + '_front_gun.png';
   });
   function cogArtReady(img) { return img && img.complete && img.naturalWidth > 0; }
   // Pick the armed pose when it's ready, else the plain one, else null (the
   // caller falls back to the procedural chassis).
   function cogArtFor(team, armed) {
-    var gun = COG_ART_GUN[team], plain = COG_ART[team];
-    if (armed && cogArtReady(gun)) return gun;
-    if (cogArtReady(plain)) return plain;
-    return cogArtReady(gun) ? gun : null;
+    var plain = COG_ART[team];
+    return cogArtReady(plain) ? plain : null;
   }
   // The front masters are trimmed to their opaque box at build time and carry NO
   // baked drop shadow (the billboard draws its own contact shadow), so the whole
@@ -1751,7 +1747,7 @@ body[data-embed] #board { top: 0; height: 100%; }
     var teams = activeTeams(s);
     ensureEndcardTeams(teams);
     $('ec-headline').textContent =
-      (o.through || 0) + ' OF ' + (o.demand || 0) + ' CARS THROUGH — PAR ' +
+      (o.through || 0) + '/' + (o.demand || 0) + ' CARS THROUGH · PAR ' +
       (o.par || 0) + (o.met ? ' MET' : ' MISSED');
     $('ec-headline').classList.toggle('red', (o.gridlocks || 0) > 0);
     $('ec-wincond').textContent = endcardRule(o);
@@ -2294,6 +2290,17 @@ body[data-embed] #board { top: 0; height: 100%; }
 .beat-marker.fallback { background: rgba(242, 232, 216, 0.5); }
 .beat-marker.end { background: var(--paper); }
 
+/* The inherited headline was one nowrap line carrying a policy name, clipped
+   with an ellipsis. This one carries the city's whole verdict, so it WRAPS and
+   scales instead: a clipped headline reads as a truncated number. */
+#endcard .headline {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  font-size: calc(21 * var(--u));
+  max-width: 96%;
+}
+
 /* ---- density: the five .tiny rules, checked at 360 px ---- */
 /* 1. each plate keeps only alias + name + served */
 #stage.tiny .plate .quad-tag { display: none; }
@@ -2309,6 +2316,7 @@ body[data-embed] #board { top: 0; height: 100%; }
 #stage.tiny .pr-wait { display: none; }
 /* 5. the gridlock chip is the word plus its tick count only */
 #stage.tiny #chip-ring .ring-list { display: none; }
+#stage.tiny #endcard .headline { font-size: calc(15 * var(--u)); }
 </style>
 <script>
 (function () {

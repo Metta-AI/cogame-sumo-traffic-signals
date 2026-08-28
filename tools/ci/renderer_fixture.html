@@ -179,7 +179,25 @@
       var size = parseFloat(style.fontSize) || 12;
       ctx.font = size + 'px ' + (style.fontFamily || 'monospace');
       ctx.fillStyle = style.color || '#f2e8d8';
-      ctx.fillText(text, box.left, box.top + size);
+      // A run its own container CLIPS is painted clipped, so transcribe the
+      // clipped string: `text-overflow: ellipsis` is a deliberate density
+      // choice, not "no room was reserved". What must still show up as an
+      // off-canvas draw is a run anchored where the composition has no room —
+      // a negative coordinate, or past the stage — and clipping cannot rescue
+      // that, because the container itself is inside the stage.
+      var clips = style.overflow === 'hidden' || style.overflowX === 'hidden' ||
+        style.textOverflow === 'ellipsis';
+      var run = text;
+      if (clips) {
+        var room = Math.max(8, parent.getBoundingClientRect().right - box.left);
+        if (ctx.measureText(run).width > room) {
+          while (run.length > 1 && ctx.measureText(run + '\u2026').width > room) {
+            run = run.slice(0, -1);
+          }
+          run = run + '\u2026';
+        }
+      }
+      ctx.fillText(run, box.left, box.top + size);
       drawn++;
     }
     return drawn;
