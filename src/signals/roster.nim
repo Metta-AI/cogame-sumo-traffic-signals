@@ -79,6 +79,24 @@ proc unregisteredSeats*(sim: SimServer): seq[int] =
     if sim.players[slot].joined and not sim.players[slot].registered:
       result.add(slot)
 
+proc refuseToStartDetail*(sim: SimServer): string =
+  ## Non-empty when the game must NOT start (design §The three named edits to
+  ## `server.nim`, edit 2): a seat that JOINED and never sent a register
+  ## record is not a policy, and running the episode with it on the published
+  ## default is the grf-football silent-default scar. The string names the
+  ## seats and becomes the episode's `stopDetail`.
+  ##
+  ## A seat that never connected AT ALL is deliberately not this case: design
+  ## §Degrade says that one plays greedy and the episode runs to its end.
+  let missing = sim.unregisteredSeats()
+  if missing.len == 0:
+    return ""
+  var names: seq[string]
+  for slot in missing:
+    names.add(seatAlias(slot) & " (seat " & $slot & ")")
+  "refusing to start: " & names.join(", ") &
+    " joined without a register record"
+
 proc rosterJson*(sim: SimServer): JsonNode =
   ## The spectator roster. `name` is the real policy name and rides the
   ## SPECTATOR stream only; nothing drawn on the board uses it, because

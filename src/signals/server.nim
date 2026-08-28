@@ -502,15 +502,18 @@ proc runServerLoop*(
   for record in sim.drainRegistrations(engine):
     records.add(record)
 
-  ## The server LOGS LOUDLY when a joined seat has no register record: a seat
-  ## that silently plays the default script for a whole episode is the
-  ## grf-football scar, and it must be visible in the game log.
+  ## The server LOGS LOUDLY and REFUSES TO START when a joined seat has no
+  ## register record (design edit 2): a seat that silently plays the default
+  ## script for a whole episode is the grf-football scar, and an episode whose
+  ## roster is a lie is worse than no episode. A seat that never connected at
+  ## all is a different case — that one plays greedy and the episode runs, as
+  ## design §Degrade requires.
   let missing = sim.unregisteredSeats()
   if missing.len > 0:
     for slot in missing:
       echo "signals: SEAT ", slot, " (", seatAlias(slot),
         ") JOINED WITHOUT A REGISTER RECORD — refusing to treat it as a ",
-        "policy; it plays the published default and is reported as dead"
+        "policy; the game will not start"
       sim.deadSeats[slot] = true
       declarePlayerFailure(slot, "seat joined without a registration record")
   for slot in 0 ..< MaxSeats:
@@ -525,8 +528,20 @@ proc runServerLoop*(
     writer.writeChat(tickTime(0), 255, record)
   records = @[]
 
+  ## Refusing to start is a settled episode, not a crash: the stop is
+  ## recorded, results.json and the replay are still written so the failure is
+  ## reported and attributable, and the process still exits 0 (the smoke
+  ## fails the build on `fault`, which is what makes it visible).
+  if missing.len > 0:
+    let detail = sim.refuseToStartDetail()
+    sim.applyStop(erFault, detail)
+    echo "signals: REFUSING TO START — ", sim.stopDetail
+    writer.writeChat(tickTime(sim.tickCount), 255,
+      stopRecord(sim.tickCount, $erFault))
+
   # --- play ---------------------------------------------------------------
-  sim.phase = Playing
+  if not sim.settled:
+    sim.phase = Playing
   let turns = sim.turnsPerEpisode()
   var deadlineHit = false
   try:

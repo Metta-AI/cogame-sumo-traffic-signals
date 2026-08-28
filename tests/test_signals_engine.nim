@@ -191,6 +191,34 @@ suite "no seat can stall the episode":
     check sim.unregisteredSeats().len == 0
     check sim.policyKinds[1] == "llm"
 
+  test "26. a JOINED seat with no register record refuses the start":
+    ## Design edit 2 to server.nim. The server settles the episode on this
+    ## predicate before it ever sets `phase = Playing`.
+    var sim = newSim(testConfig())
+    for slot in 0 ..< MaxSeats:
+      sim.players[slot].joined = true
+      sim.registerSeat(slot, "greenwave", "llm", "greedy")
+    check sim.refuseToStartDetail().len == 0
+    sim.players[1].registered = false
+    let detail = sim.refuseToStartDetail()
+    checkpoint("refusal: " & detail)
+    check detail.len > 0
+    check seatAlias(1) in detail
+    ## A seat that never connected at all is NOT this case: design §Degrade
+    ## says it plays greedy and the episode runs to its end.
+    var quiet = newSim(testConfig())
+    check quiet.refuseToStartDetail().len == 0
+    ## The refusal is a settled episode, not a crash: `fault`, the seat named,
+    ## and a results document that still parses.
+    sim.applyStop(erFault, detail)
+    check sim.endReason == rsFault
+    check sim.endRule == erFault
+    check sim.finalTick == 0
+    let document = parseJson(sim.cityResultsJson())
+    check document{"reason"}.getStr() == "fault"
+    check document{"endRule"}.getStr() == "fault"
+    check document{"stopDetail"}.getStr() == detail
+
 suite "the guards settle early":
   test "27. the wall-clock stop settles with the REAL throughput, not zero":
     var sim = runScripted(testConfig(), [blGreedy])
