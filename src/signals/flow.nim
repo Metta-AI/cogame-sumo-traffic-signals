@@ -184,6 +184,7 @@ proc creditCorridor*(sim: var SimServer, car, link: int) =
   if kept.len >= sim.config.waveVehicles:
     inc sim.greenWaves
     sim.waveTicks[bucket] = @[]
+    sim.waveFlashTick[bucket] = sim.tickCount
     sim.emitEvent(initSimEvent(
       seWave, sim.tickCount, at = at, a = bucket, b = kept.len,
       text = corridorLabel(bucket) & " " & corridorDirText(bucket)))

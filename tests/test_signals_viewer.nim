@@ -227,6 +227,48 @@ suite "chrome provenance":
     check "data-replay-error" in shell
     check "window.SignalsStaticReplay" in shell
 
+suite "the green-wave sweep":
+  test "41. a wave runs a band down its corridor's lane, and only then":
+    ## The board carries the `wave` label and bakes the chip; before this it
+    ## never placed one, so the manifest declared a label the compositor could
+    ## not emit and the idea's own green-wave visualisation was banner-only.
+    var sim = newSim(emptyConfig())
+    for bucket in 0 ..< sim.waveFlashTick.len:
+      check sim.waveSweepCells(bucket).len == 0
+    ## Row A eastbound: the entry link, the three blocks, the exit link.
+    var lane: seq[int]
+    for link in sim.corridorLinkPath(0):
+      for i in 0 ..< sim.city.links[link].cells:
+        lane.add(sim.city.flatCell(link, i))
+    check lane.len == 26
+    sim.waveFlashTick[0] = 40
+    var
+      covered = newSeq[bool](lane.len)
+      lastHead = -1
+    for step in 0 ..< WaveFlashTicks:
+      sim.tickCount = 40 + step
+      let cells = sim.waveSweepCells(0)
+      check cells.len > 0
+      var head = -1
+      for flat in cells:
+        let position = lane.find(flat)
+        check position >= 0
+        covered[position] = true
+        if position > head:
+          head = position
+      ## The band MOVES, in the direction of travel.
+      check head > lastHead
+      lastHead = head
+    ## It swept the whole lane and nothing else.
+    for position in 0 ..< covered.len:
+      checkpoint("lane cell " & $position)
+      check covered[position]
+    ## And it is over once the flash is spent; no other corridor lit up.
+    sim.tickCount = 40 + WaveFlashTicks
+    check sim.waveSweepCells(0).len == 0
+    for bucket in 1 ..< sim.waveFlashTick.len:
+      check sim.waveSweepCells(bucket).len == 0
+
 suite "the label manifest":
   test "41. the emitted board-label vocabulary equals tests/label_manifest.txt":
     let

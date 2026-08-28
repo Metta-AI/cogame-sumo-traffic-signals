@@ -72,6 +72,10 @@ type
     longestGridlockTicks*: int
     stallTicks*: int
     waveTicks*: array[16, seq[int]]  ## (corridor, dir) -> credit ticks.
+    waveFlashTick*: array[16, int]   ## (corridor, dir) -> the tick its last
+                                     ## wave fired, 0 for never. Presentation
+                                     ## only: the board's sweep reads it and
+                                     ## the game hash does not.
 
     throughput*: int
     rejected*: int
@@ -294,6 +298,13 @@ proc corridorDirText*(bucket: int): string =
     if bucket mod 2 == 0: "eastbound" else: "westbound"
   else:
     if bucket mod 2 == 0: "southbound" else: "northbound"
+
+proc corridorDir*(bucket: int): Dir =
+  ## The direction of travel of one arterial bucket.
+  if bucket < 8:
+    if bucket mod 2 == 0: apE else: apW
+  else:
+    if bucket mod 2 == 0: apS else: apN
 
 proc corridorIntersections*(bucket: int): seq[int] =
   ## The four intersections on one arterial, in the direction of travel.

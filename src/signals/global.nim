@@ -54,6 +54,12 @@ const
   SignalZ* = 500
   PipZ* = 300
 
+  # --- the green-wave sweep ---
+  WaveFlashTicks* = 8
+    ## How long the sweep runs the corridor after a `wave` fires.
+  WaveBandCells* = 6
+    ## The band's length along the lane, one block of an east-west street.
+
 type
   GlobalViewerState* = object
     ## Per-viewer emission state. The protocol is RETAINED-MODE — a client
@@ -203,6 +209,49 @@ proc lampFor(sim: SimServer, at: int, approach: Approach): int =
     return 2
   if phasePermits(phase, approach, movement): 2 else: 0
 
+proc corridorLinkPath*(sim: SimServer, bucket: int): seq[int] =
+  ## One arterial's lane, in the direction of travel: the entry link from its
+  ## gate, the three blocks between its four intersections, and the exit link
+  ## out the far side.
+  let
+    ats = corridorIntersections(bucket)
+    dir = corridorDir(bucket)
+  if ats.len == 0:
+    return @[]
+  let entry = sim.city.inbound[ats[0]][ord(opposite(dir))]
+  if entry >= 0:
+    result.add(entry)
+  for at in ats:
+    let leaving = sim.city.outbound[at][ord(dir)]
+    if leaving >= 0:
+      result.add(leaving)
+
+proc waveSweepCells*(sim: SimServer, bucket: int): seq[int] =
+  ## The flat board cells one corridor's green-wave band covers on THIS tick.
+  ## The band enters at the corridor's gate on the tick the `wave` fires and
+  ## runs the whole lane in the direction of travel over `WaveFlashTicks`,
+  ## then stops — the design note's "a bright band sweeps the corridor's lane
+  ## in the direction of travel". Empty when that corridor has no live wave,
+  ## which is every corridor on almost every tick.
+  let fired = sim.waveFlashTick[bucket]
+  if fired <= 0:
+    return @[]
+  let since = sim.tickCount - fired
+  if since < 0 or since >= WaveFlashTicks:
+    return @[]
+  let path = sim.corridorLinkPath(bucket)
+  var total = 0
+  for link in path:
+    total += sim.city.links[link].cells
+  let head = ((since + 1) * total) div WaveFlashTicks
+  var walked = 0
+  for link in path:
+    for i in 0 ..< sim.city.links[link].cells:
+      let position = walked + i
+      if position < head and position >= head - WaveBandCells:
+        result.add(sim.city.flatCell(link, i))
+    walked += sim.city.links[link].cells
+
 proc buildBoardPacket*(
   sim: var SimServer,
   state: GlobalViewerState,
@@ -260,6 +309,15 @@ proc buildBoardPacket*(
       result.place(nextState.objectsPresent, RingObjectBase + flat,
         sim.city.cellX[flat] * CellPx, sim.city.cellY[flat] * CellPx,
         RingZ, RingSpriteId)
+
+  # The green-wave sweep: the corridor a `wave` just fired on carries a bright
+  # band down its lane, in the direction of travel, for WaveFlashTicks.
+  for bucket in 0 ..< sim.waveFlashTick.len:
+    for flat in sim.waveSweepCells(bucket):
+      result.addChip(nextState, WaveSpriteId, bakedWave, waveLabel())
+      result.place(nextState.objectsPresent, WaveObjectBase + flat,
+        sim.city.cellX[flat] * CellPx, sim.city.cellY[flat] * CellPx,
+        WaveZ, WaveSpriteId)
 
   # Cars.
   for id in 0 ..< sim.cars.len:
