@@ -155,9 +155,7 @@ proc turn*(
   ## Runs ONE decision turn and installs every seat's orders. Returns the
   ## replay chat records this turn produced. NEVER raises: every failure path
   ## ends in a legal order set.
-  let
-    budget = initDuration(milliseconds = max(1, sim.config.turnBudgetMs))
-    turnStart = getMonoTime()
+  let budget = initDuration(milliseconds = max(1, sim.config.turnBudgetMs))
   ## Throttle state is PER TURN: a 429 on turn k says nothing about turn k+1.
   engine.client.throttled = false
 
@@ -223,12 +221,22 @@ proc turn*(
     engine.lastBatchStart = getMonoTime()
     engine.batchStarted = true
 
+  ## The per-turn budget bounds the CALLS, so its clock starts HERE, after the
+  ## spacing sleep. Started at the top of the turn instead, a turn that waited
+  ## ~9 s for spacing and then spent attempt 1's 9 s would be over budget
+  ## before the retry batch could be issued, and the retry the checklist
+  ## requires would be silently skipped. The turn is still bounded — spacing
+  ## (<= turnSpacingMs) then calls (<= turnBudgetMs) — and the note's
+  ## `32 turns x max(spacing, budget)` holds, because the spacing sleep is a
+  ## floor between batch STARTS and shrinks by exactly what the calls took.
+  let callsStart = getMonoTime()
+
   # --- up to two PARALLEL batches -----------------------------------------
   var attempt = 0
   while open.len > 0 and attempt < 2:
     if engine.client.disabled:
       break
-    if getMonoTime() - turnStart >= budget:
+    if getMonoTime() - callsStart >= budget:
       for slot in open:
         result.add(fallbackRecord(
           turnIndex, slot, attempt + 1, "timeout",
