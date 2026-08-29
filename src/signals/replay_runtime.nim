@@ -60,6 +60,9 @@ proc advanceReplayFrame*(
   ## Applies viewer controls and advances one public presentation frame. One
   ## tick per `FramesPerTick` frames at speed 1, so a 256-tick episode plays
   ## for ~21 s and `viewer_smoke.mjs --soak 10` observes real advancement.
+  ## The parity flips FIRST, before any early return, so 1/2x keeps spending a
+  ## tick every other frame no matter what else this frame does.
+  player.halfPhase = not player.halfPhase
   var didSeek = false
   for seekTick in seekTicks:
     player.applyReplaySeek(sim, seekTick)
@@ -78,6 +81,11 @@ proc advanceReplayFrame*(
     var boost = player.replaySpeed()
     if player.skipLulls and player.isLullTick(sim.tickCount):
       boost = boost * LullSpeedBoost
+    elif player.speedIndex == ReplayHalfSpeedIndex:
+      ## 1/2x: one frame's worth of budget every OTHER frame, so a tick lands
+      ## every `2 * FramesPerTick` frames. The lull boost still wins —
+      ## skip-lulls is how a viewer gets PAST the dead stretches, at any speed.
+      boost = (if player.halfPhase: 1 else: 0)
     player.subFrames += boost
     var steps = player.subFrames div FramesPerTick
     player.subFrames = player.subFrames mod FramesPerTick
@@ -109,7 +117,7 @@ proc buildReplayViewerPacket*(
   result.addChromeSprite(sim.buildStateJson(
     events,
     player.playing,
-    player.replaySpeed(),
+    player.replayDisplaySpeed(),
     player.replayMaxTick(),
     player.looping,
     true,

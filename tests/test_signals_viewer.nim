@@ -9,8 +9,11 @@ import signals/[labels, global, rig_art, wire_constants]
 
 const
   ChromeCommonSha256 =
-    "7ace7287e0d19bf0fddb2362c55e4d76dfb44adcd4fbc8d1743b0557ced72f7c"
-  ChromeCommonBytes = 40_022
+    "594ed4a72cd908922c982d0f3e3ffb04ae1d97568fcd5f5daa794042662a369c"
+    ## coworld-ctf's `client/chrome_common.js` plus the fleet-wide replay
+    ## transport patch, and NOTHING else: the 0.5x entry in the SPEEDS
+    ## fallback and the 0.5 -> '5' entry in the speed->command map. Two lines.
+  ChromeCommonBytes = 40_037
   SpliceBanner =
     "sumo-traffic-signals additions to the inherited coworld-ctf chrome"
 
@@ -22,15 +25,20 @@ proc sha256Hex(data: string): string =
     result.add(toHex(byte0, 2).toLowerAscii())
 
 suite "chrome provenance":
-  test "35. chrome_common.js is byte-identical to the starter's":
+  test "35. chrome_common.js is the starter's plus the transport patch":
     let text = repoFile("client/chrome_common.js")
     check text.len == ChromeCommonBytes
     let digest = sha256Hex(text)
     checkpoint("sha256 " & digest)
     check digest == ChromeCommonSha256
-    ## It is the STARTER'S file, unedited: it still reads window.CTF_WIRE, and
-    ## wire_constants.nim publishes that alias precisely so the byte pin holds.
+    ## It is still the STARTER'S file everywhere else: it reads
+    ## window.CTF_WIRE, and wire_constants.nim publishes that alias precisely
+    ## so the lookup resolves without a second edit to a pinned file.
     check "window.CTF_WIRE" in text
+    ## The patch itself, named rather than left to the digest: the 1/2x chip
+    ## exists AND its click reaches the engine as '5'.
+    check "[0.5, 1, 2, 3, 4, 8, 16]" in text
+    check "{ 0.5: '5', 1: '1'" in text
     check "window.ChromeCommon" in text
     check "markBeat" in text
     check "renderBeatMarkers" in text
@@ -42,6 +50,9 @@ suite "chrome provenance":
 
   test "35. the wire constants publish SIGNALS_WIRE and alias CTF_WIRE":
     check WireConstantsJs.startsWith("window.SIGNALS_WIRE={")
+    ## The chips are engine-authoritative, so the 1/2x crawl has to be IN the
+    ## list the chrome iterates, ahead of the integer speeds.
+    check "speeds:[0.5,1,2,4,8,16]" in WireConstantsJs
     check "window.CTF_WIRE=window.SIGNALS_WIRE;" in WireConstantsJs
     check "chromeSpriteId:" & $BroadcastChromeSpriteId in WireConstantsJs
     check "cellPx:" & $CellPx in WireConstantsJs
@@ -180,6 +191,19 @@ suite "chrome provenance":
     check BoardCellsWide * 1000 div BoardCellsHigh == 1307
     check BoardPxWide == BoardCellsWide * CellPx
     check BoardPxHigh == BoardCellsHigh * CellPx
+
+  test "39. Space pauses on the ONE shipped page":
+    ## The bundle ships exactly one HTML page (Dockerfile.replay-viewer builds
+    ## client/replay_broadcast.html into dist/index.html), so the board page's
+    ## own keydown IS the whole Space story here — there is no league shell to
+    ## forward it from. Pinned so a later keyboard edit cannot quietly drop it.
+    let page = repoFile("client/replay_broadcast.html")
+    check "function togglePlay() { send(' '); }" in page
+    check "if (k === ' ') { ev.preventDefault(); togglePlay(); }" in page
+    check "$('btn-play').addEventListener('click', togglePlay);" in page
+    ## And ' ' is what the engine reads as play/pause, not some page-local
+    ## state: the command channel is the single source of truth.
+    check "function send(cmd) { core.sendCommand(cmd); }" in page
 
   test "39. the removed ids appear NOWHERE in the page":
     let page = repoFile("client/replay_broadcast.html")

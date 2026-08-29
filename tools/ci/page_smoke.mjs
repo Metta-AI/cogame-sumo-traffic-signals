@@ -27,7 +27,7 @@ const { JSDOM } = require(process.env.JSDOM_MODULE || 'jsdom');
 const pagePath = process.argv[2] || 'client/replay_broadcast.html';
 const raw = readFileSync(pagePath, 'utf8');
 const chromeCommon = readFileSync('client/chrome_common.js', 'utf8');
-const wire = `window.SIGNALS_WIRE={speeds:[1,2,4,8,16],fps:24,chromeSpriteId:4090,` +
+const wire = `window.SIGNALS_WIRE={speeds:[0.5,1,2,4,8,16],fps:24,chromeSpriteId:4090,` +
   `cellPx:16,boardCellsW:34,boardCellsH:26,framesPerTick:2,seats:4,maxSayRunes:120};` +
   `window.CTF_WIRE=window.SIGNALS_WIRE;`;
 

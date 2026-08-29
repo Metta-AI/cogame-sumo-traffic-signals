@@ -27,6 +27,10 @@ export replayCodec
 const
   SignalsReplayMagic* = "COWLDSIG"
   SignalsReplayFormatVersion* = 1'u16
+  ReplayHalfSpeedIndex* = -1
+    ## `speedIndex` sentinel for 1/2x playback: one tick every OTHER frame.
+    ## Replay-only — `replaySpeed` clamps it back to `PlaybackSpeeds[0]` (1x)
+    ## so every integer consumer (the live loop included) still reads 1.
   ReplayEndHoldSeconds* = 10
     ## How long a looping replay holds on its final frame before restarting.
   LullQuietTicks* = 40
@@ -100,6 +104,10 @@ type
     looping*: bool
     skipLulls*: bool
     speedIndex*: int
+      ## Index into `PlaybackSpeeds`, or `ReplayHalfSpeedIndex` for 1/2x.
+    halfPhase*: bool
+      ## Frame parity while at 1/2x: a tick is spent only on the `true`
+      ## frames, toggled once per `advanceReplayFrame`.
     subFrames*: int
     turnStart*: int
     startTick*: int
@@ -177,7 +185,15 @@ proc applyOrdersRecord*(sim: var SimServer, record: OrdersRecord) =
 # ---------------------------------------------------------------------------
 
 proc replaySpeed*(player: ReplayPlayer): int =
+  ## The integer tick budget per frame. 1/2x reads as 1 here — the fractional
+  ## pace lives in the `halfPhase` parity, not in this number.
   PlaybackSpeeds[clamp(player.speedIndex, 0, PlaybackSpeeds.len - 1)]
+
+proc replayDisplaySpeed*(player: ReplayPlayer): float =
+  ## The speed the chrome shows and highlights a chip for: 0.5 at 1/2x, else
+  ## the integer speed.
+  if player.speedIndex == ReplayHalfSpeedIndex: 0.5
+  else: float(player.replaySpeed())
 
 proc replayMaxTick*(player: ReplayPlayer): int =
   player.maxTick
@@ -331,14 +347,22 @@ proc seekReplay*(player: var ReplayPlayer, sim: var SimServer, tick: int) =
   player.subFrames = 0
 
 proc applySpeedCommand*(speedIndex: var int, command: char) =
+  ## The shared chrome names a speed by its VALUE, not by its position:
+  ## `chrome_common.js` maps 1,2,4,8,16 to '1','2','4','8','6' and the new 1/2x
+  ## chip to '5'. This game's `PlaybackSpeeds` skips 3, so reading the digit as
+  ## an index made the 4x chip select 8x and left the 8x and 16x chips inert.
+  ## The digit is looked up in `PlaybackSpeeds` instead, so the chip that is
+  ## lit is the speed that plays.
   case command
-  of '1': speedIndex = 0
-  of '2': speedIndex = min(1, PlaybackSpeeds.len - 1)
-  of '3': speedIndex = min(2, PlaybackSpeeds.len - 1)
-  of '4': speedIndex = min(3, PlaybackSpeeds.len - 1)
-  of '5': speedIndex = PlaybackSpeeds.len - 1
+  of '5': speedIndex = ReplayHalfSpeedIndex
   of '+': speedIndex = min(speedIndex + 1, PlaybackSpeeds.len - 1)
-  of '-': speedIndex = max(speedIndex - 1, 0)
+  of '-': speedIndex = max(speedIndex - 1, ReplayHalfSpeedIndex)
+  of '1', '2', '4', '8', '6':
+    # '6' is the chrome's single-character stand-in for 16x.
+    let index =
+      PlaybackSpeeds.find(if command == '6': 16 else: ord(command) - ord('0'))
+    if index >= 0:
+      speedIndex = index
   else: discard
 
 proc applyReplayCommand*(
@@ -346,7 +370,7 @@ proc applyReplayCommand*(
 ) =
   ## The starter's transport vocabulary, kept: space = play/pause, `,`/`.` =
   ## step, `[`/`]` = jump, `r` = restart, `e` = end, `l` = loop, `k` = skip
-  ## lulls, digits = speed.
+  ## lulls, digits = speed BY VALUE ('5' is the 1/2x crawl).
   case command
   of ' ', 'p':
     player.playing = not player.playing
@@ -371,7 +395,7 @@ proc applyReplayCommand*(
     player.looping = not player.looping
   of 'k':
     player.skipLulls = not player.skipLulls
-  of '1', '2', '3', '4', '5', '+', '-':
+  of '1', '2', '4', '5', '6', '8', '+', '-':
     applySpeedCommand(player.speedIndex, command)
   else:
     discard

@@ -365,7 +365,7 @@ proc liveStateJson(sim: SimServer, events: JsonNode): string =
   sim.buildStateJson(
     events,
     playing = true,
-    speed = 1,
+    speed = 1.0,
     maxTick = sim.config.maxTicks,
     looping = false,
     transportEnabled = false,
@@ -434,7 +434,7 @@ proc runReplayLoop(
     if player.scanComplete():
       lead = leadSeriesFrom(player.exitSeries, player.rejectSeries, 4)
     sim.broadcastFrame(sim.buildStateJson(
-      frameEvents, player.playing, player.replaySpeed(),
+      frameEvents, player.playing, player.replayDisplaySpeed(),
       player.replayMaxTick(), player.looping, true, player.hashMismatchTick,
       player.replayStartTick(), player.endHoldSecondsLeft(), player.skipLulls,
       false, player.lullSpans, cityBeatsJson(player.beats), lead))
