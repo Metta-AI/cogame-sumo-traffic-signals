@@ -7,11 +7,12 @@
 ##
 ## The block publishes `window.SIGNALS_WIRE` and then aliases
 ## `window.CTF_WIRE` to the same object. The alias is NOT laziness: this fork
-## copies `client/chrome_common.js` BYTE-FOR-BYTE (its sha256 is pinned by
-## `tests/test_signals_viewer.nim`), and the starter's file reads
-## `window.CTF_WIRE`. Editing it to read the new name would break the byte
-## pin, so the constants are published under both names and the forked
-## `broadcast_core.js` reads the new one.
+## copies `client/chrome_common.js` from the starter apart from the fleet-wide
+## replay-transport patch (its sha256 is pinned by
+## `tests/test_signals_viewer.nim`), and that file still reads
+## `window.CTF_WIRE`. Renaming the lookup would be a second, gratuitous edit
+## to a pinned file, so the constants are published under both names and the
+## forked `broadcast_core.js` reads the new one.
 
 import std/strutils
 import sim_types, rig_art, global
@@ -24,7 +25,9 @@ proc jsIntArray(values: openArray[int]): string =
   result.add "]"
 
 const WireConstantsJs* =
-  "window.SIGNALS_WIRE={speeds:" & jsIntArray(PlaybackSpeeds) &
+  # 0.5 is the replay-only 1/2x crawl (`ReplayHalfSpeedIndex`, command '5');
+  # it rides ahead of the engine's integer `PlaybackSpeeds`.
+  "window.SIGNALS_WIRE={speeds:[0.5," & jsIntArray(PlaybackSpeeds)[1 .. ^1] &
   ",fps:" & $TargetFps &
   ",chromeSpriteId:" & $BroadcastChromeSpriteId &
   ",cellPx:" & $CellPx &

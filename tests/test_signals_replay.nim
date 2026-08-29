@@ -4,7 +4,7 @@
 
 import std/[json, os, osproc, strutils, unicode, unittest]
 import helpers
-import signals/[replay_runtime, decide]
+import signals/[replay_runtime, broadcast, decide]
 
 proc tempDir(name: string): string =
   result = getTempDir() / (name & "-" & $getCurrentProcessId())
@@ -271,4 +271,77 @@ suite "the GameVersion sweep":
     bytes[marker] = '9'
     expect ReplayError:
       discard parseReplayBytes(bytes)
+    removeDir(work)
+
+suite "the replay transport's speed dialect":
+  test "33. the chips name a speed by VALUE, and '5' is the 1/2x crawl":
+    ## `chrome_common.js` maps a chip to the digit of its own speed —
+    ## 1,2,4,8,16 to '1','2','4','8','6' — and this game's PlaybackSpeeds
+    ## skips 3, so reading the digit as an INDEX made the 4x chip play 8x and
+    ## left 8x and 16x inert. Every chip the chrome can draw is checked here.
+    var index = 0
+    for pair in [('1', 1), ('2', 2), ('4', 4), ('8', 8), ('6', 16)]:
+      applySpeedCommand(index, pair[0])
+      checkpoint("command '" & pair[0] & "'")
+      check index >= 0
+      check PlaybackSpeeds[index] == pair[1]
+    ## The 1/2x crawl is a sentinel BELOW the array, not a member of it.
+    applySpeedCommand(index, '5')
+    check index == ReplayHalfSpeedIndex
+    ## '+' climbs out of it to 1x; '-' falls back into it and floors there.
+    applySpeedCommand(index, '+')
+    check index == 0
+    check PlaybackSpeeds[index] == 1
+    applySpeedCommand(index, '-')
+    check index == ReplayHalfSpeedIndex
+    applySpeedCommand(index, '-')
+    check index == ReplayHalfSpeedIndex
+
+  test "33. 1/2x spends one tick every OTHER frame, and reads 0.5":
+    ## The pace is the point: at 1x a tick lands every `FramesPerTick` frames,
+    ## at 1/2x every `2 * FramesPerTick`, and playback still moves.
+    let
+      work = tempDir("signals-halfspeed")
+      path = work / "half.replay"
+    discard recordEpisode(testConfig(), path, erNone)
+    var initialized = initReplayRuntime(parseReplayBytes(readFile(path)),
+                                        mismatchQuit = true)
+    var
+      sim = move(initialized.sim)
+      player = move(initialized.player)
+      tracker = move(initialized.tracker)
+    ## The integer budget clamps to 1x so every consumer of `replaySpeed`
+    ## still reads an in-range speed; only the DISPLAY speed is fractional.
+    player.speedIndex = ReplayHalfSpeedIndex
+    check player.replaySpeed() == 1
+    check player.replayDisplaySpeed() == 0.5
+    player.speedIndex = 0
+    check player.replayDisplaySpeed() == 1.0
+
+    const Frames = 4 * FramesPerTick
+    let
+      noSeeks: seq[int] = @[]
+      noCommands: seq[char] = @[]
+    var ticks: array[2, int]
+    for run, speedIndex in [0, ReplayHalfSpeedIndex]:
+      player.applyReplaySeek(sim, 0)
+      player.playing = true
+      player.speedIndex = speedIndex
+      player.halfPhase = false
+      let before = sim.tickCount
+      for _ in 0 ..< Frames:
+        discard player.advanceReplayFrame(sim, tracker, noSeeks, noCommands)
+      ticks[run] = sim.tickCount - before
+    checkpoint("1x advanced " & $ticks[0] & " ticks, 1/2x advanced " &
+      $ticks[1])
+    check ticks[0] == Frames div FramesPerTick
+    check ticks[1] * 2 == ticks[0]
+    check ticks[1] > 0
+
+    ## And the frame the chrome reads carries 0.5, so the 0.5x chip lights.
+    player.speedIndex = ReplayHalfSpeedIndex
+    let chrome = sim.buildStateJson(
+      newJArray(), player.playing, player.replayDisplaySpeed(),
+      player.replayMaxTick(), player.looping, true, player.hashMismatchTick)
+    check parseJson(chrome){"sp"}.getFloat() == 0.5
     removeDir(work)
