@@ -171,6 +171,11 @@ jobs:
           nim c -d:release --path:src -o:/tmp/sumo-posttrain tools/export_posttrain.nim
           python3 tools/test_posttrain.py /tmp/sumo-posttrain
 
+      - name: Train bridge complete games
+        run: |
+          nim c -d:release --path:src -o:/tmp/sumo-train-bridge tools/train_bridge.nim
+          python3 tools/test_train_bridge.py /tmp/sumo-train-bridge
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

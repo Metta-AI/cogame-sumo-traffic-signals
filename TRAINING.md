@@ -29,5 +29,23 @@ uv run --package metta-posttrain --extra train python -m metta_posttrain.train \
 ```
 
 The exporter includes public detectors and the acting seat's private notes,
-but no other controller's orders. Numeric Metta RL and PufferLib training need
-a bounded codec for each seat's four intersection orders.
+but no other controller's orders.
+
+## Numeric reinforcement learning
+
+`tools/train_bridge.nim` exposes 201 values from public detectors, network
+status, and the acting seat's four signals. Twelve action heads choose the
+verb, phase, and delay for each owned intersection. All four controllers
+choose against one pre-turn state, then the native simulator advances.
+
+```sh
+nim c -d:release --path:src -o:/tmp/sumo-train-bridge tools/train_bridge.nim
+python3 tools/test_train_bridge.py /tmp/sumo-train-bridge
+```
+
+From a Metta checkout with the Coworld training stack, pass absolute bridge
+and manifest paths to `recipes.external.coworld.train` for native PufferLib,
+or `recipes.external.coworld_metta_rl.train` for Metta RL. Use `players=4`,
+`max_decisions=128`, a timestep limit, and either certified variant ID.
+The bridge also publishes the hosted observation as `semantic_view` and
+`messages`.
