@@ -166,6 +166,11 @@ jobs:
       - name: Re-run the baseline sweep with --check
         run: nim r --hints:off -d:release --path:src tools/tune_baselines.nim --check
 
+      - name: Export complete training episodes
+        run: |
+          nim c -d:release --path:src -o:/tmp/sumo-posttrain tools/export_posttrain.nim
+          python3 tools/test_posttrain.py /tmp/sumo-posttrain
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"

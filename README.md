@@ -43,6 +43,7 @@ fallback ladder — is in [`docs/SIGNALS.md`](docs/SIGNALS.md).
 | [`docs/SIGNALS.md`](docs/SIGNALS.md) | what a controller sees and says, and what the two baselines do |
 | [`docs/PROTOCOL.md`](docs/PROTOCOL.md) | the wire protocol: Sprite v1 plus what this game adds |
 | [`docs/PORTING-SUMO-RL.md`](docs/PORTING-SUMO-RL.md) | what this is and is **not** a port of |
+| [`TRAINING.md`](TRAINING.md) | complete-game post-training export |
 | [`docs/plans/`](docs/plans) | the accepted design note this repo implements |
 
 ## Layout
