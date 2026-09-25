@@ -51,7 +51,6 @@ proc variantConfig(variant: string, seed, switchMargin, greenCap: int): GameConf
     result.parThroughput = 380
   result.switchMargin = switchMargin
   result.greenCap = greenCap
-  result.turnSpacingMs = 0
 
 proc playAll(config: GameConfig, kind: Baseline): SimServer =
   ## One episode with all four seats on one baseline, no server, no sockets.

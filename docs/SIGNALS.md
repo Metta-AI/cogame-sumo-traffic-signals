@@ -1,8 +1,7 @@
 # Controlling the signals
 
-A policy is just a prompt. Set `PLAYER_PROMPT` on this image and your text
-becomes the operator guidance a controller weighs when it decides what its four
-signals do next.
+The player receives a private observation and replies with an action each turn.
+Set `PLAYER_PROMPT` for a Claude prompt policy on this image:
 
 ```bash
 coworld upload-policy coworld-sumo-traffic-signals:latest \
@@ -13,6 +12,7 @@ coworld upload-policy coworld-sumo-traffic-signals:latest \
 
 Set `PLAYER_SCRIPTED=greedy` or `PLAYER_SCRIPTED=fixedcycle` instead and the
 seat plays that scripted baseline. A seat that sets neither is `greedy`.
+Set `PLAYER_JEV=1` for the Jev policy. Model credentials belong to the player.
 
 ## What you see
 
@@ -23,10 +23,11 @@ and does not see another operator's intended offsets.
 
 ```json
 {
-  "you": "Gamma",
+  "slot": 2, "you": "Gamma",
   "controllers": ["Alpha", "Beta", "Gamma", "Delta"],
   "your_quadrant": "SW",
-  "turn": 9, "of": 32, "tick": 64, "turn_ticks": 8, "ticks_left": 192,
+  "turn": 9, "of": 32, "tick": 64, "turn_ticks": 8,
+  "green_cap": 6, "switch_margin": 2, "ticks_left": 192,
   "city": {"rows": ["A","B","C","D"], "cols": [1,2,3,4],
            "quadrants": {"Alpha": ["A1","A2","B1","B2"], "...": []},
            "link_cells": {"ew": 6, "ns": 4, "ew_gate": 4, "ns_gate": 3},
@@ -35,7 +36,8 @@ and does not see another operator's intended offsets.
            "min_green": 4, "clearance": 2, "max_red": 60,
            "demand_ends_tick": 208, "par": 260},
   "your_signals": [
-    {"at": "C2", "phase": "EWG", "ticks_in_phase": 6,
+    {"at": "C2", "phase": "EWG", "current_phase": "EWG",
+     "ticks_in_phase": 6,
      "order": "wave EWG +3", "order_age_turns": 2, "last_order_result": "ran",
      "approaches": [
        {"from": "E", "queue": 6, "link_full": true, "stop_line": "left",
@@ -63,6 +65,7 @@ of `phase|spillback|null`; `last_order_result` one of
 `ran|deferred|overridden|repaired|unknown` — the driver's honest report of what
 actually happened to your previous order, which is what lets you notice that
 your offsets are being eaten by `minGreenTicks` or by a starvation override.
+`current_phase` is the last green phase while `phase` is `CLR`.
 
 **Hidden:** every other seat's orders, offsets, notes and intentions; every
 other seat's real player name, policy name and kind; future demand; other
@@ -133,17 +136,15 @@ controllers.
 
 ## The cadence, and what happens when a call is missed
 
-One turn every 8 ticks, 32 turns per episode. All four seats' calls go out as
-ONE parallel batch per turn — attempt 1 gets 9 s, a single retry gets 4 s, and
-the whole turn is wrapped in a 14 s monotonic deadline. Consecutive batch
-STARTS are held 12 s apart, and a rolling 60 s request counter keeps the episode
-under the sidecar's 30 req/min cap.
+One turn every 8 ticks, 32 turns per episode. The game sends all four private
+views before collecting replies, with a 14 s turn deadline. Each player paces
+its own model calls and applies a rolling request cap.
 
-On a second failure the seat plays the **`greedy`** orders — the same proc the
-`greedy` baseline uses — and a `fallback` record names the cause
+When credentials are absent, the player sends its scripted fallback action. If
+the player misses a turn deadline, the game applies greedy orders. A
+`fallback` record names the cause
 (`timeout`, `parse_error`, `transport_error`, `no_credentials`, `rate_guard`,
-`budget_guard`, `throttled`, `disconnected`). Attempt 1 logs *will retry*; only
-a genuine second failure logs *falling back*.
+`budget_guard`, `throttled`, `disconnected`).
 
 No failure mode leaves a signal without a phase: the driver always has an order
 — this turn's, else last turn's, else `greedy`'s — and absent everything the
@@ -152,7 +153,7 @@ signal holds its current phase, which is a legal state.
 ## The two baselines
 
 **`greedy`** is the standard longest-queue actuated controller, and the
-server-side fallback: hold when the current phase is within `switchMargin` of
+game's missing-action fallback: hold when the current phase is within `switchMargin` of
 the best, else switch to the best. It **never** looks at an exit link's
 occupancy, so it discharges into full links and exports congestion downstream —
 the behaviour local greed produces, shipped as the thing to beat.

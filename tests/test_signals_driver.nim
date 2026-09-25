@@ -1,9 +1,9 @@
 ## Bounded orders and legality on the scripted baselines, the driver, and the
 ## reply validator. Tests 18-21 and 23 of the design note's list.
 
-import std/[json, random, strutils, unittest, unicode]
+import std/[json, random, unittest, unicode]
 import helpers
-import signals/[directives, driver]
+import signals/[directives, driver, player_policy]
 
 proc randomWorld(rng: var Rand, variant: string): SimServer =
   ## A pseudo-random world state: a demand phase, a scatter of cars on random
@@ -37,6 +37,26 @@ proc randomWorld(rng: var Rand, variant: string): SimServer =
   result.detectGridlock()
 
 suite "baselines are bounded":
+  test "player baselines reproduce game baselines from private observations":
+    var rng = initRand(20260925)
+    for _ in 0 ..< 40:
+      let sim = randomWorld(rng, "grid4x4")
+      for slot in 0 ..< MaxSeats:
+        let view = sim.observationJson(slot, sim.turn)
+        for kind in [blGreedy, blFixedCycle]:
+          let action = scriptedAction(view, $kind)
+          let parsed = parseControllerReply(action,
+            quadrantIntersections(slot), sim.previousOrders(slot),
+            sim.turn, sim.config.turnTicks)
+          let expected = sim.scriptedReply(slot, kind)
+          check parsed.rejected == 0
+          check parsed.orders.len == expected.orders.len
+          for index in 0 ..< expected.orders.len:
+            check parsed.orders[index].at == expected.orders[index].at
+            check parsed.orders[index].verb == expected.orders[index].verb
+            if parsed.orders[index].verb in [ovPhase, ovWave]:
+              check parsed.orders[index].phase == expected.orders[index].phase
+
   test "18. 200 random worlds x both baselines x every slot stay legal":
     var rng = initRand(20260828)
     for i in 0 ..< 200:

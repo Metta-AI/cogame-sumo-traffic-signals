@@ -7,27 +7,24 @@ base document; anything not mentioned here matches Sprite v1 exactly. Game
 semantics — the rules, the phases, the scoring — live in [`RULES.md`](RULES.md),
 and the policy contract lives in [`SIGNALS.md`](SIGNALS.md).
 
-Forked from coworld-ctf's `docs/PROTOCOL.md`, retargeted: this game's seats
-send no per-tick inputs at all, so most of the starter's input section is
-replaced by a much shorter contract.
+Forked from coworld-ctf's `docs/PROTOCOL.md`, retargeted for a turn based
+decision and action exchange.
 
-## The seat sends ONE message: its registration
+## Registration
 
-A seat is a **registrar**, not a controller. It connects to
-`/player?slot=<i>&token=<t>`, sends ONE Sprite v1 chat message (`0x81`) whose
-text is a JSON object, and then only receives:
+A seat connects to `/player?slot=<i>&token=<t>` and sends a Sprite v1 chat
+message (`0x81`) whose text is a JSON object:
 
 ```json
 {"type": "register",
- "prompt": "<PLAYER_PROMPT, or empty>",
+ "protocol": "signals.player.v2",
+ "kind": "scripted" | "prompt" | "jev",
  "policy": "<a free label for the replay's register record>",
- "scripted": "greedy" | "fixedcycle" | null}
+ "scripted": "greedy" | "fixedcycle"}
 ```
 
-* `prompt` is rune-truncated at **4000 runes**; `policy` at **64 runes**.
-* `scripted` is JSON `null` when the seat is an LLM seat, so the server can
-  tell "no baseline named" from "greedy named explicitly".
-* A seat that sets neither field is `greedy`.
+`policy` is rune-truncated at **64 runes**. Prompts and model credentials stay
+inside the player container. `scripted` names the player's baseline or fallback.
 
 **Registration is RE-SENT, not sent once.** Joins are slot-sequential, so the
 first registration can land while the seat has no index yet; the server HOLDS
@@ -35,39 +32,44 @@ an unappliable registration and re-reads it when the slot lands, and the
 reference registrar keeps re-sending for the first ~10 s of received frames.
 Registering twice is harmless — the server re-reads the same fields.
 
-**Any other chat text from a seat is DROPPED.** Controllers speak through the
-reply's `say` field, not through the wire's chat channel, and a registration
-message is consumed as registration and never written to the replay chat
-stream: the server writes a redacted `register` record instead, carrying the
-policy label and kind but never the prompt.
+Registration is consumed without entering replay chat. The server records the
+policy label and kind, never the prompt. Controllers speak through the action's
+`say` field.
 
-## Every decision happens in the GAME server
+## Turn decisions
 
-`PLAYER_PROMPT` reaches the game through the registration message above, and
-the game server makes the LLM call. That is not a stylistic choice: the
-`anthropic_api_key` coworld secret is injected into the **game** pod
-(`game.runnable.env.ANTHROPIC_API_KEY_URI`), and keeping the control layer
-server-side is what makes the recorded order log reproducible with no network
-in the loop. No `USE_BEDROCK` flag is needed on a policy, because the player
-pod makes no LLM call.
+At each turn the game sends each seat one private websocket TextMessage:
+
+```json
+{"protocol":"signals.player.v2","type":"decision","turn":0,
+ "deadline_ms":14000,"observation":{"slot":0}}
+```
+
+The player replies with a Sprite v1 chat message containing:
+
+```json
+{"protocol":"signals.player.v2","type":"action","turn":0,
+ "action":{"orders":[],"say":"","notes":""},
+ "source":"scripted","cause":"","latency_ms":0}
+```
+
+The game sends all four private views before applying any action. It validates
+the replies, applies them together, and writes the resolved orders to replay.
+`source` is `scripted`, `llm`, or `fallback`; model calls stay in the player.
 
 The reply schema, the caps and the fallback ladder are in
 [`SIGNALS.md`](SIGNALS.md).
 
-## Player Ready (`0x85`) is supported and is safe here
+## Player Ready (`0x85`)
 
-The server understands the Sprite v1 Player Ready packet (`0x85`). Sending it
-is legitimate for THIS game in a way it is not for an ordinary player client:
-a seat sends **no inputs at all** (the server computes every phase), so the
-dead-reckoning hazard the starter's protocol document warns about cannot arise.
-Every shipped variant runs `fastMode: true`.
+The server understands the Sprite v1 Player Ready packet (`0x85`). Turns wait
+for explicit actions; Ready only advances the ordinary sprite stream. Every
+shipped variant runs `fastMode: true`.
 
 ## Player input bits are unused
 
-This game assigns no meaning to any player-input bit. A seat that sends a
-`0x84` Player Input packet is ignored; nothing it can send changes the
-simulation. The whole input log of an episode is the per-turn ORDER records
-(see `RULES.md` § The replay).
+This game assigns no meaning to `0x84` Player Input bits. Turn actions use the
+chat message above. The replay stores per-turn ORDER records (see `RULES.md`).
 
 ## The routes
 

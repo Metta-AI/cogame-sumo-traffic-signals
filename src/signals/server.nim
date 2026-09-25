@@ -1,10 +1,9 @@
 ## The game server: the mummy HTTP/websocket server implementing the Coworld
 ## contract, and the episode loop. Forked from the starter's
-## `src/ctf/server.nim` with the three named edits of design §The three named
-## edits to `server.nim`:
+## `src/ctf/server.nim` with turn exchange, registration, and wall-clock stop:
 ##
-##   1. **Turn boundary** — unchanged in shape, with `turnTicks = 8` and FOUR
-##      seats in the batch.
+##   1. **Turn boundary** — four private views go to four players before their
+##      actions are validated and applied together.
 ##   2. **Registration interception** — a player's Sprite v1 chat message
 ##      (`0x81`) whose text parses as a registration object is consumed as
 ##      REGISTRATION, not applied as a shout and not written to the replay chat
@@ -81,6 +80,7 @@ type
     playerSlots: Table[WebSocket, int]
     playerTokens: Table[WebSocket, string]
     pendingRegistration: Table[WebSocket, string]
+    pendingAction: Table[WebSocket, JsonNode]
     globalViewers: Table[WebSocket, GlobalViewerState]
     closedSockets: seq[WebSocket]
     replayUri: string
@@ -207,7 +207,11 @@ proc websocketHandler(
           elif websocket in appState.playerSlots:
             let text = message.data.readSpriteInputText()
             if text.len > 0 and text[0] == '{':
-              appState.pendingRegistration[websocket] = text
+              let node = parseJson(text)
+              if node{"type"}.getStr() == "action":
+                appState.pendingAction[websocket] = node
+              elif node{"type"}.getStr() == "register":
+                appState.pendingRegistration[websocket] = text
   of ErrorEvent, CloseEvent:
     {.gcsafe.}:
       withLock appState.lock:
@@ -273,6 +277,7 @@ proc drainClosedSockets(sim: var SimServer) =
           appState.playerSlots.del(socket)
           appState.playerTokens.del(socket)
           appState.pendingRegistration.del(socket)
+          appState.pendingAction.del(socket)
         appState.globalViewers.del(socket)
 
 proc drainRegistrations(
@@ -304,13 +309,12 @@ proc drainRegistrations(
     if node.kind != JObject:
       continue
     let
-      prompt = node{"prompt"}.getStr().truncateRunes(MaxPromptRunes)
       scripted = node{"scripted"}.getStr()
       label = node{"policy"}.getStr().truncateRunes(MaxPolicyLabelRunes)
-      isLlm = prompt.len > 0
+      kind = node{"kind"}.getStr()
+      isLlm = kind in ["prompt", "jev"]
       baseline = parseBaseline(scripted)
     engine.seats[entry.slot].isLlm = isLlm
-    engine.seats[entry.slot].prompt = prompt
     engine.seats[entry.slot].baseline = baseline
     engine.seats[entry.slot].label =
       if label.len > 0: label
@@ -340,6 +344,40 @@ proc connectedSeats(): int =
       for slot in 0 ..< MaxSeats:
         if seen[slot]:
           inc result
+
+proc exchangePlayers(
+  turn: int, views: array[MaxSeats, JsonNode], deadlineMs: int
+): array[MaxSeats, JsonNode] =
+  ## Dispatch every private view before collecting any orders. The socket
+  ## thread fills the action table while this game thread waits one deadline.
+  var sockets: seq[tuple[slot: int, socket: WebSocket]]
+  withLock appState.lock:
+    appState.pendingAction.clear()
+    for socket, slot in appState.playerSlots:
+      sockets.add((slot, socket))
+  var pending: array[MaxSeats, bool]
+  for (slot, socket) in sockets:
+    socket.send($(%*{
+      "protocol": "signals.player.v2", "type": "decision",
+      "turn": turn, "deadline_ms": deadlineMs,
+      "observation": views[slot]
+    }), TextMessage)
+    pending[slot] = true
+  let deadline = getMonoTime() + initDuration(milliseconds = max(0, deadlineMs))
+  while getMonoTime() < deadline:
+    var arrivals: seq[tuple[slot: int, node: JsonNode]]
+    withLock appState.lock:
+      for socket, node in appState.pendingAction:
+        if socket in appState.playerSlots:
+          arrivals.add((appState.playerSlots[socket], node))
+      appState.pendingAction.clear()
+    for (slot, node) in arrivals:
+      if pending[slot] and node{"turn"}.getInt(-1) == turn:
+        result[slot] = node
+        pending[slot] = false
+    if not (pending[0] or pending[1] or pending[2] or pending[3]):
+      break
+    sleep(1)
 
 proc declarePlayerFailure(slot: int, message: string) =
   ## The platform's CLOSED payload — exactly `{"message",
@@ -463,7 +501,7 @@ proc runServerLoop*(
   echo describeCity(sim.city)
   echo "quadrants: ", quadrantMapText()
 
-  var engine = initDecisionEngine(sim)
+  var engine = initDecisionEngine()
   var tracker = initBroadcastTracker()
   var writer = openReplayWriter(replayPath, config.configJson())
   for slot in 0 ..< MaxSeats:
@@ -561,7 +599,7 @@ proc runServerLoop*(
       sim.drainClosedSockets()
       for record in sim.drainRegistrations(engine):
         writer.writeChat(tickTime(sim.tickCount), 255, record)
-      let turnRecords = engine.turn(sim, turnIndex, elapsed)
+      let turnRecords = engine.turn(sim, turnIndex, elapsed, exchangePlayers)
       writer.writeChat(tickTime(sim.tickCount), 255,
         ordersRecord(sim, turnIndex))
       for record in turnRecords:
@@ -628,7 +666,7 @@ proc runEpisode*(
   ## scripted baseline. Used by `tests/test_signals_engine.nim` and by
   ## `tools/record_fixture.sh`.
   result = initSimServer(config)
-  var engine = initDecisionEngine(result)
+  var engine = initDecisionEngine()
   var writer = openReplayWriter(replayPath, config.configJson())
   for slot in 0 ..< MaxSeats:
     result.players[slot].joined = true

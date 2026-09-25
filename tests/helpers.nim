@@ -14,7 +14,6 @@ proc testConfig*(
   result.seed = seed
   result.variant = variant
   result.maxTicks = maxTicks
-  result.turnSpacingMs = 0
   if variant == "rushhour":
     result.demandWarmPermille = 80
     result.demandPeakStart = 24

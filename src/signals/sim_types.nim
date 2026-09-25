@@ -15,6 +15,7 @@ import
 
 const
   GameName* = "sumo-traffic-signals"
+  PlayerProtocolId* = "signals.player.v2"
   GameVersion* = "1"  ## GV1 (first rule set): SIXTEEN SIGNALISED INTERSECTIONS
     ## on a 4x4 city grid, four controllers with a quadrant each. Cars enter
     ## from sixteen edge gates, drive fixed shortest routes over single-lane
@@ -67,14 +68,8 @@ const
   # --- timing defaults (design §Decisions, the budget table) ---
   DefaultTurnTicks* = 8
   DefaultMaxTicks* = 256
-  DefaultAttempt1Ms* = 9000
-  DefaultRetryMs* = 4000
   DefaultTurnBudgetMs* = 14_000
-  DefaultTurnSpacingMs* = 12_000
   DefaultWallClockBudgetSeconds* = 660
-  DefaultMaxOutputTokens* = 900
-  RateGuardWindowSeconds* = 60 ## rolling request-counter window.
-  RateGuardMaxRequests* = 28   ## trailing-60 s ceiling (sidecar cap is 30).
 
   # --- city defaults (design §The city) ---
   DefaultEwLinkCells* = 6
@@ -241,17 +236,12 @@ type
     waveCrossings*: int
     switchMargin*: int
     greenCap*: int
-    attempt1Ms*: int
-    retryMs*: int
     turnBudgetMs*: int
-    turnSpacingMs*: int
     wallClockBudgetSeconds*: int
     lobbyJoinTimeoutTicks*: int
     gameOverTicks*: int
     fastMode*: bool
     showPlayerLabels*: bool
-    model*: string
-    maxOutputTokens*: int
     speed*: int
 
 const
