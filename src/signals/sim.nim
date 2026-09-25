@@ -342,6 +342,7 @@ proc observationJson*(sim: SimServer, slot, turn: int): JsonNode =
     yourSignals.add(%*{
       "at": intersectionName(at),
       "phase": sim.phaseText(at),
+      "current_phase": $sim.signals[at].phase,
       "ticks_in_phase": sim.signals[at].ticksInPhase,
       "order": orderText(sim.signals[at].order),
       "order_age_turns": sim.orderAgeTurns[at],
@@ -380,6 +381,7 @@ proc observationJson*(sim: SimServer, slot, turn: int): JsonNode =
     gridlock.add(%name)
 
   result = %*{
+    "slot": slot,
     "you": seatAlias(slot),
     "controllers": controllers,
     "your_quadrant": seatQuadrant(slot),
@@ -387,6 +389,8 @@ proc observationJson*(sim: SimServer, slot, turn: int): JsonNode =
     "of": sim.turnsPerEpisode(),
     "tick": sim.tickCount,
     "turn_ticks": sim.config.turnTicks,
+    "green_cap": sim.config.greenCap,
+    "switch_margin": sim.config.switchMargin,
     "ticks_left": max(0, sim.config.maxTicks - sim.tickCount),
     "city": sim.cityBlockJson(),
     "your_signals": yourSignals,

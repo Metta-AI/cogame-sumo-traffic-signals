@@ -43,17 +43,12 @@ proc defaultGameConfig*(): GameConfig =
     waveCrossings: DefaultWaveCrossings,
     switchMargin: DefaultSwitchMargin,
     greenCap: DefaultGreenCap,
-    attempt1Ms: DefaultAttempt1Ms,
-    retryMs: DefaultRetryMs,
     turnBudgetMs: DefaultTurnBudgetMs,
-    turnSpacingMs: DefaultTurnSpacingMs,
     wallClockBudgetSeconds: DefaultWallClockBudgetSeconds,
     lobbyJoinTimeoutTicks: DefaultLobbyJoinTimeoutTicks,
     gameOverTicks: DefaultGameOverTicks,
     fastMode: true,
     showPlayerLabels: false,
-    model: "",
-    maxOutputTokens: DefaultMaxOutputTokens,
     speed: 1
   )
   for slot in 0 ..< MaxSeats:
@@ -121,19 +116,13 @@ proc clampConfig(config: var GameConfig) =
   config.waveCrossings = clamp(config.waveCrossings, 2, 16)
   config.switchMargin = clamp(config.switchMargin, 0, 32)
   config.greenCap = clamp(config.greenCap, 1, 64)
-  ## curly hands the deadline to CURLOPT_TIMEOUT, whose granularity is WHOLE
-  ## SECONDS, so a sub-second value is not the deadline it claims to be.
-  config.attempt1Ms = clamp(config.attempt1Ms, 1000, 120_000)
-  config.retryMs = clamp(config.retryMs, 1000, 120_000)
   config.turnBudgetMs = clamp(config.turnBudgetMs, 1000, 240_000)
-  config.turnSpacingMs = clamp(config.turnSpacingMs, 0, 240_000)
   ## 660 s is the engine's own stop, inside 60 % of the assumed 1200 s
   ## `episodeTimeoutSeconds`. A variant may lower it, never raise it.
   config.wallClockBudgetSeconds =
     clamp(config.wallClockBudgetSeconds, 30, DefaultWallClockBudgetSeconds)
   config.lobbyJoinTimeoutTicks = clamp(config.lobbyJoinTimeoutTicks, 1, 100_000)
   config.gameOverTicks = clamp(config.gameOverTicks, 0, 1000)
-  config.maxOutputTokens = clamp(config.maxOutputTokens, 64, 8192)
   config.speed = clamp(config.speed, 1, PlaybackSpeeds[^1])
   if config.players.len < MaxSeats:
     for slot in config.players.len ..< MaxSeats:
@@ -187,17 +176,12 @@ proc update*(config: var GameConfig, configJson: string) =
     node.readInt("waveCrossings", config.waveCrossings)
     node.readInt("switchMargin", config.switchMargin)
     node.readInt("greenCap", config.greenCap)
-    node.readInt("attempt1Ms", config.attempt1Ms)
-    node.readInt("retryMs", config.retryMs)
     node.readInt("turnBudgetMs", config.turnBudgetMs)
-    node.readInt("turnSpacingMs", config.turnSpacingMs)
     node.readInt("wallClockBudgetSeconds", config.wallClockBudgetSeconds)
     node.readInt("lobbyJoinTimeoutTicks", config.lobbyJoinTimeoutTicks)
     node.readInt("gameOverTicks", config.gameOverTicks)
     node.readBool("fastMode", config.fastMode)
     node.readBool("showPlayerLabels", config.showPlayerLabels)
-    node.readStr("model", config.model)
-    node.readInt("maxOutputTokens", config.maxOutputTokens)
     node.readInt("speed", config.speed)
 
     let players = node{"players"}

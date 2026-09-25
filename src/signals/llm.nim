@@ -1,15 +1,5 @@
-## Claude-backed signal control. A policy is just a prompt: the game server
-## composes the seat's detector view plus that seat's PLAYER_PROMPT and asks
-## Claude what its four signals do for the next eight simulated seconds.
-##
-## Forked from the starter's `src/ctf/llm.nim` with NO behaviour change — the
-## credential ladder, the Bedrock model rotation, the fence-tolerant JSON
-## extraction and the rune-boundary truncation are all scar tissue from real
-## hosted failures and none of it is re-derived here.
-##
-## This is a SIMULTANEOUS-decision game, so all four seats' calls go out as
-## ONE parallel batch per turn (`curly.makeRequests`). Seats are never queried
-## sequentially: that is what keeps 32 turns inside the wall-clock budget.
+## Player-side Claude transport for the prompt policy. The game server sees
+## only the player's ordinary action, never its prompt or credentials.
 ##
 ## Credentials, in order of preference:
 ##   Bedrock sidecar (AWS_ENDPOINT_URL_BEDROCK_RUNTIME + AWS_BEARER_TOKEN_BEDROCK)
@@ -91,11 +81,11 @@ proc bedrockUrl(client: LlmClient): string =
   client.bedrockEndpoint & "/model/" &
     client.bedrockModels[client.bedrockModel] & "/invoke"
 
-proc newLlmClient*(config: GameConfig): LlmClient =
+proc newLlmClient*(): LlmClient =
   result = LlmClient(
-    model: (if config.model.len > 0: config.model
-            else: "claude-haiku-4-5-20251001"),
-    maxOutputTokens: max(1, config.maxOutputTokens)
+    model: getEnv("PLAYER_MODEL", "claude-haiku-4-5-20251001"),
+    maxOutputTokens: clamp(
+      getEnv("PLAYER_MAX_OUTPUT_TOKENS", "900").parseInt(), 64, 8192)
   )
   let
     bedrockEndpoint = getEnv("AWS_ENDPOINT_URL_BEDROCK_RUNTIME").strip()

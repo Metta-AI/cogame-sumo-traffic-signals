@@ -52,10 +52,7 @@
     "runnable": {
       "type": "game",
       "image": "{{SUMO_TRAFFIC_SIGNALS_IMAGE}}",
-      "run": ["/bin/sumo-traffic-signals"],
-      "env": {
-        "ANTHROPIC_API_KEY_URI": "secret://coworld/sumo-traffic-signals/anthropic_api_key"
-      }
+      "run": ["/bin/sumo-traffic-signals"]
     },
     "config_schema": {
       "type": "object",
@@ -116,17 +113,12 @@
         "waveCrossings": {"type": "integer", "minimum": 2, "maximum": 16},
         "switchMargin": {"type": "integer", "minimum": 0, "maximum": 32},
         "greenCap": {"type": "integer", "minimum": 1, "maximum": 64},
-        "attempt1Ms": {"type": "integer", "minimum": 1000, "maximum": 120000},
-        "retryMs": {"type": "integer", "minimum": 1000, "maximum": 120000},
         "turnBudgetMs": {"type": "integer", "minimum": 1000, "maximum": 240000},
-        "turnSpacingMs": {"type": "integer", "minimum": 0, "maximum": 240000},
         "wallClockBudgetSeconds": {"type": "integer", "minimum": 30, "maximum": 660},
         "lobbyJoinTimeoutTicks": {"type": "integer", "minimum": 1, "maximum": 100000},
         "gameOverTicks": {"type": "integer", "minimum": 0, "maximum": 1000},
         "fastMode": {"type": "boolean"},
         "showPlayerLabels": {"type": "boolean"},
-        "model": {"type": "string"},
-        "maxOutputTokens": {"type": "integer", "minimum": 64, "maximum": 8192},
         "speed": {"type": "integer", "minimum": 1, "maximum": 16}
       }
     },
@@ -241,10 +233,7 @@
         "waveCrossings": 3,
         "switchMargin": 2,
         "greenCap": 6,
-        "attempt1Ms": 9000,
-        "retryMs": 4000,
         "turnBudgetMs": 14000,
-        "turnSpacingMs": 12000,
         "wallClockBudgetSeconds": 660,
         "lobbyJoinTimeoutTicks": 2400,
         "fastMode": true,
@@ -285,10 +274,7 @@
         "waveCrossings": 3,
         "switchMargin": 2,
         "greenCap": 6,
-        "attempt1Ms": 9000,
-        "retryMs": 4000,
         "turnBudgetMs": 14000,
-        "turnSpacingMs": 12000,
         "wallClockBudgetSeconds": 660,
         "lobbyJoinTimeoutTicks": 2400,
         "fastMode": true,

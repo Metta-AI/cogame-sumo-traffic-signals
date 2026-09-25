@@ -4,13 +4,44 @@
 import std/[json, os, unittest]
 import helpers
 import bitworld/runtime
-import signals/server
+import signals/[server, decide, player_policy]
+
+proc exerciseActionExchange(
+  turn: int, views: array[MaxSeats, JsonNode], deadlineMs: int
+): array[MaxSeats, JsonNode] =
+  doAssert deadlineMs == DefaultTurnBudgetMs
+  for slot in 0 ..< MaxSeats:
+    doAssert views[slot]["slot"].getInt() == slot
+    doAssert views[slot]["your_signals"].len == 4
+  doAssert views[0]["your_signals"][0]["at"].getStr() !=
+    views[1]["your_signals"][0]["at"].getStr()
+  let at = views[0]["your_signals"][0]["at"].getStr()
+  result[0] = %*{"action": {"orders": [
+    {"at": at, "verb": "wave", "phase": "EWG", "delay": 2}],
+    "say": "wave incoming", "notes": "check downstream"},
+    "source": "llm", "latency_ms": 3}
+  for slot in 1 ..< MaxSeats - 1:
+    result[slot] = %*{"action": scriptedAction(views[slot], "greedy"),
+      "source": "scripted", "latency_ms": 0}
 
 proc tempDir(name: string): string =
   result = getTempDir() / (name & "-" & $getCurrentProcessId())
   createDir(result)
 
 suite "episode writes artifacts":
+  test "ordinary player exchange applies actions and isolates missing seats":
+    var sim = newSim(testConfig())
+    var engine = initDecisionEngine()
+    engine.seats[0].isLlm = true
+    let records = engine.turn(sim, 1, 0, exerciseActionExchange)
+    check records.len >= MaxSeats
+    check sim.radio[0] == "wave incoming"
+    check sim.notes[0] == "check downstream"
+    check sim.llmTurns[0] == 1
+    check sim.fallbackTurns[3] == 1
+    check sim.signals[quadrantIntersections(0)[0]].order.verb == ovWave
+    check sim.signals[quadrantIntersections(0)[0]].order.delay == 2
+
   test "24. a real four-seat scripted episode writes results and a replay":
     let
       work = tempDir("signals-engine")
@@ -268,6 +299,6 @@ suite "the guards settle early":
     let config = testConfig()
     let turns = config.turnsPerEpisode()
     check turns == 32
-    ## 32 turns x max(spacing, budget) plus lobby, settle and replay write.
-    let worst = turns * max(DefaultTurnSpacingMs, DefaultTurnBudgetMs) div 1000
+    ## 32 turn deadlines plus lobby, settle and replay write.
+    let worst = turns * DefaultTurnBudgetMs div 1000
     check worst + 100 + 20 < DefaultWallClockBudgetSeconds

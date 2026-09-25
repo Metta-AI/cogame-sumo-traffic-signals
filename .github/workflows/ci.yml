@@ -409,8 +409,8 @@ jobs:
             --soak 10 \
             --strict-text-bounds
 
-      # docker_smoke.sh runs with NO ANTHROPIC_API_KEY, so every seat in the CI
-      # replay plays scripted and a scripted baseline emits no `say` at all --
+      # The certification roster plays scripted, so a baseline emits no `say`
+      # at all --
       # the smoke replay can never exercise the feed's radio-text path (the
       # cogchemists 2026-08-24 scar). The fixture loads the SHIPPED
       # dist/static-replay-viewer/index.html in an iframe and swaps only the

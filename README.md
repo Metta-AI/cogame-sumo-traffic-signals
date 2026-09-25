@@ -19,7 +19,7 @@ everybody is scored on, including you.
 There is no central plan. The only channel between controllers is a
 120-character radio call.
 
-## A policy is just a prompt
+## Player policies
 
 ```bash
 coworld upload-policy coworld-sumo-traffic-signals:latest \
@@ -31,6 +31,10 @@ coworld upload-policy coworld-sumo-traffic-signals:latest \
 Set `PLAYER_SCRIPTED=greedy` or `PLAYER_SCRIPTED=fixedcycle` instead and the
 seat plays that scripted baseline out of the same image. A seat that sets
 neither is `greedy`.
+
+Set `PLAYER_JEV=1` to use the Jev policy. Prompt and Jev policies make model
+calls from the player container. They use their own credentials and fall back
+to `PLAYER_SCRIPTED` when no inference credential is available.
 
 The full policy contract — the observation, the reply schema, the caps, the
 fallback ladder — is in [`docs/SIGNALS.md`](docs/SIGNALS.md).
@@ -51,16 +55,16 @@ fallback ladder — is in [`docs/SIGNALS.md`](docs/SIGNALS.md).
 ```
 src/signals/          the sim, the server, the commander layer, the compositor
 src/sumo_traffic_signals.nim         the game entrypoint  -> /bin/sumo-traffic-signals
-src/sumo_traffic_signals_player.nim  the thin seat registrar -> /bin/…-player
+src/sumo_traffic_signals_player.nim  the player policy -> /bin/…-player
 client/               the broadcast chrome (the starter's page + a game block)
 replay-viewer/        the static wasm replay viewer: the SAME sim, compiled to wasm
 tools/                the build hook, the fixture recorder, the baseline sweep, CI
 tests/                the Nim suite, in four balanced shards
 ```
 
-One image, two entrypoints. The game server makes the LLM call — that is the
-only container the platform injects the `anthropic_api_key` coworld secret into
-— so a policy is nothing but its environment.
+One image, two entrypoints. The game server owns observations, action
+validation, results, and replay. The player entrypoint chooses actions through
+the `signals.player.v2` exchange.
 
 ## The replay is a static wasm bundle, never a pod
 
@@ -92,8 +96,8 @@ quadrant is visible as its bar overtaking; and a feed in plain language —
 
 ## Building and testing
 
-The sandbox that wrote this repo has no Docker, no Nim and no emsdk: CI is the
-harness.
+Run the native suite with Nim 2.2.4. Docker and the replay viewer require
+their respective local toolchains.
 
 ```bash
 # the whole suite, from the repo ROOT

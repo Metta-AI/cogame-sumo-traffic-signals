@@ -2,7 +2,7 @@
 ## ids, the beat CSS, the transport and density rules, and the label manifest.
 ## Tests 35-39 and 41 of the design note's list.
 
-import std/[algorithm, os, strutils, unittest]
+import std/[algorithm, strutils, unittest]
 import crunchy
 import helpers
 import signals/[labels, global, rig_art, wire_constants]

@@ -3,7 +3,7 @@
 ## Every claim here is a real upload failure someone already paid for, named in
 ## `playbooks/make-coworld.md` §Common mistakes.
 
-import std/[json, os, strutils, unittest]
+import std/[json, strutils, unittest]
 import helpers
 
 const Slug = "sumo-traffic-signals"
@@ -157,14 +157,10 @@ suite "manifest pins":
     let cert = manifest{"certification"}{"game_config"}
     check cert{"wallClockBudgetSeconds"}.getInt() <= 660
 
-  test "33. game.name equals the slug AND the secret URI namespace":
-    ## The commons-family 2026-08-24 scar: `game.name` and the slug differing
-    ## by one character breaks `upload-coworld` after a fully green certify.
+  test "33. game.name equals the slug and the game has no model secret":
     check manifest{"game"}{"name"}.getStr() == Slug
     check GameName == Slug
-    let env = manifest{"game"}{"runnable"}{"env"}
-    let uri = env{"ANTHROPIC_API_KEY_URI"}.getStr()
-    check uri == "secret://coworld/" & Slug & "/anthropic_api_key"
+    check manifest{"game"}{"runnable"}{"env"}.isNil
     check manifest{"game"}{"runnable"}{"run"}[0].getStr() == "/bin/" & Slug
     check manifest{"game"}{"runnable"}{"image"}.getStr() ==
       "{{SUMO_TRAFFIC_SIGNALS_IMAGE}}"
@@ -232,8 +228,9 @@ suite "the manifest loads under the installed CLI":
     check "--timeout-seconds 300" in release
     check "Replay liveness: skipped (static replay bundle declared" in release
     check "release-result" in release
-    for input in ["version:", "policies:", "put_secret:", "skip_certify:"]:
+    for input in ["version:", "policies:", "skip_certify:"]:
       check input in release
+    check "put_secret:" notin release
     let submit = repoFile(".github/workflows/coworld-submit.yml")
     check "submit-result" in submit
     for input in ["player_id:", "policy:", "league_id:"]:
