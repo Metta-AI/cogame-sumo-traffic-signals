@@ -312,7 +312,7 @@ proc drainRegistrations(
       scripted = node{"scripted"}.getStr()
       label = node{"policy"}.getStr().truncateRunes(MaxPolicyLabelRunes)
       kind = node{"kind"}.getStr()
-      isLlm = kind in ["prompt", "jev"]
+      isLlm = kind in ["prompt", "external"]
       baseline = parseBaseline(scripted)
     engine.seats[entry.slot].isLlm = isLlm
     engine.seats[entry.slot].baseline = baseline

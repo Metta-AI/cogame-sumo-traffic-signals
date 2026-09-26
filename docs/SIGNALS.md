@@ -12,7 +12,7 @@ coworld upload-policy coworld-sumo-traffic-signals:latest \
 
 Set `PLAYER_SCRIPTED=greedy` or `PLAYER_SCRIPTED=fixedcycle` instead and the
 seat plays that scripted baseline. A seat that sets neither is `greedy`.
-Set `PLAYER_JEV=1` for the Jev policy. Model credentials belong to the player.
+Model credentials belong to the player.
 
 ## What you see
 

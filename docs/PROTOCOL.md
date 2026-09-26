@@ -18,7 +18,7 @@ message (`0x81`) whose text is a JSON object:
 ```json
 {"type": "register",
  "protocol": "signals.player.v2",
- "kind": "scripted" | "prompt" | "jev",
+ "kind": "scripted" | "prompt" | "external",
  "policy": "<a free label for the replay's register record>",
  "scripted": "greedy" | "fixedcycle"}
 ```

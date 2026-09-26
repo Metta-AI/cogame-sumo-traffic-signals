@@ -32,9 +32,8 @@ Set `PLAYER_SCRIPTED=greedy` or `PLAYER_SCRIPTED=fixedcycle` instead and the
 seat plays that scripted baseline out of the same image. A seat that sets
 neither is `greedy`.
 
-Set `PLAYER_JEV=1` to use the Jev policy. Prompt and Jev policies make model
-calls from the player container. They use their own credentials and fall back
-to `PLAYER_SCRIPTED` when no inference credential is available.
+Prompt policies make model calls from the player container. They use their own
+credentials and fall back to `PLAYER_SCRIPTED` when no inference credential is available.
 
 The full policy contract — the observation, the reply schema, the caps, the
 fallback ladder — is in [`docs/SIGNALS.md`](docs/SIGNALS.md).
