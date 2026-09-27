@@ -1,11 +1,11 @@
-## Scripted, Claude prompt, and Jev policies over the same private seat view.
+## Scripted and Claude prompt policies over the same private seat view.
 ## The game receives metadata and ordinary actions, never model credentials.
 
 import std/[json, monotimes, options, os, strutils, times]
 import bitworld/spriteprotocol
 import whisky
 import signals/[sim_types, llm, model_pacing,
-  player_policy, prompt_policy, jev_policy]
+  player_policy, prompt_policy]
 
 const
   ConnectAttempts = 240
@@ -32,12 +32,10 @@ when isMainModule:
   let
     prompt = getEnv("PLAYER_PROMPT").strip().truncateRunes(MaxPromptRunes)
     scripted = getEnv("PLAYER_SCRIPTED", "greedy").strip()
-    jev = getEnv("PLAYER_JEV") == "1"
-    kind = if jev: "jev" elif prompt.len > 0: "prompt" else: "scripted"
+    kind = if prompt.len > 0: "prompt" else: "scripted"
     label = block:
       let explicit = getEnv("PLAYER_POLICY_LABEL").strip()
       if explicit.len > 0: explicit
-      elif jev: "jev"
       elif prompt.len > 0: "prompt"
       else: scripted
   var pacer = newModelPacer()
@@ -85,14 +83,6 @@ when isMainModule:
               cause = ""
               action: JsonNode
             case kind
-            of "jev":
-              if jevConfigured():
-                action = chooseJevAction(view, pacer, budgetMs)
-                source = "llm"
-              else:
-                action = scriptedAction(view, scripted)
-                source = "fallback"
-                cause = "no_credentials"
             of "prompt":
               if promptClient.disabled:
                 action = scriptedAction(view, scripted)
