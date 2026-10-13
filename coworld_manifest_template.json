@@ -53,9 +53,7 @@
       "type": "game",
       "image": "{{SUMO_TRAFFIC_SIGNALS_IMAGE}}",
       "run": ["/bin/sumo-traffic-signals"],
-      "env": {
-        "ANTHROPIC_API_KEY_URI": "secret://coworld/sumo-traffic-signals/anthropic_api_key"
-      }
+      "env": {}
     },
     "config_schema": {
       "type": "object",
