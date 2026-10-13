@@ -171,9 +171,11 @@ proc turn*(
 
   # --- which seats need a call? -------------------------------------------
   var open: seq[int]
+  var failureCauses: array[MaxSeats, string]
   for slot in 0 ..< MaxSeats:
     if engine.seats[slot].isLlm and not engine.llmOff and
         not engine.client.disabled:
+      failureCauses[slot] = "no_credentials"
       open.add(slot)
     elif engine.seats[slot].isLlm:
       # An LLM seat that CANNOT call the LLM this turn is a FALLBACK, not a
@@ -238,6 +240,7 @@ proc turn*(
       break
     if getMonoTime() - callsStart >= budget:
       for slot in open:
+        failureCauses[slot] = "timeout"
         result.add(fallbackRecord(
           turnIndex, slot, attempt + 1, "timeout",
           "per-turn budget exhausted before attempt " & $(attempt + 1)))
@@ -290,6 +293,7 @@ proc turn*(
                      "timeout" else: "transport_error")
         elif error.msg.startsWith("llm throttled"):
           cause = "throttled"
+        failureCauses[slot] = cause
         result.add(fallbackRecord(
           turnIndex, slot, attempt + 1, cause, error.msg))
         ## Attempt 1 says "will retry" — only a genuine SECOND failure may log
@@ -316,12 +320,7 @@ proc turn*(
   for slot in open:
     engine.installScripted(sim, slot, blGreedy, dsFallback)
     inc sim.fallbackTurns[slot]
-    let cause =
-      if engine.client.disabled or engine.client.transport == ltNone:
-        "no_credentials"
-      elif engine.llmOff: "budget_guard"
-      elif engine.client.throttled: "throttled"
-      else: "parse_error"
+    let cause = failureCauses[slot]
     result.add(fallbackRecord(turnIndex, slot, 2, cause,
       "seat fell back to the greedy orders"))
     ## "falling back" is the phrase phase 60 greps the GAME log for.
