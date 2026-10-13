@@ -251,7 +251,7 @@ proc turn*(
         user.add("\n\nYour previous reply was not usable. Reply with ONLY " &
           "the JSON object described above, starting with '{'.")
       let request = engine.client.requestFor(
-        SystemPrompt, userMessage(engine.seats[slot].prompt, user))
+        SystemPrompt, userMessage(engine.seats[slot].prompt, user), slot)
       batch.post(request.url, request.headers, request.body, $slot)
     let started = getMonoTime()
     for i in 0 ..< open.len:

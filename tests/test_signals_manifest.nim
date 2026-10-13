@@ -163,8 +163,7 @@ suite "manifest pins":
     check manifest{"game"}{"name"}.getStr() == Slug
     check GameName == Slug
     let env = manifest{"game"}{"runnable"}{"env"}
-    let uri = env{"ANTHROPIC_API_KEY_URI"}.getStr()
-    check uri == "secret://coworld/" & Slug & "/anthropic_api_key"
+    check env.len == 0
     check manifest{"game"}{"runnable"}{"run"}[0].getStr() == "/bin/" & Slug
     check manifest{"game"}{"runnable"}{"image"}.getStr() ==
       "{{SUMO_TRAFFIC_SIGNALS_IMAGE}}"
@@ -175,7 +174,7 @@ suite "manifest pins":
     check ("  " & Slug & ":") in compose
     check "image: coworld-" & Slug & ":latest" in compose
     check "platform: linux/amd64" in compose
-    check "network: host" in compose
+    check "network: host" notin compose
     let placeholder = "{{SUMO_TRAFFIC_SIGNALS_IMAGE}}"
     check placeholder in readFile(repoPath("coworld_manifest_template.json"))
 
@@ -229,10 +228,10 @@ suite "the manifest loads under the installed CLI":
     let ci = repoFile(".github/workflows/ci.yml")
     check "validate_upload_manifest" in ci
     let release = repoFile(".github/workflows/coworld-release.yml")
-    check "--timeout-seconds 300" in release
+    check "--wait-certification" in release
     check "Replay liveness: skipped (static replay bundle declared" in release
     check "release-result" in release
-    for input in ["version:", "policies:", "put_secret:", "skip_certify:"]:
+    for input in ["version:", "policies:", "skip_certify:"]:
       check input in release
     let submit = repoFile(".github/workflows/coworld-submit.yml")
     check "submit-result" in submit
